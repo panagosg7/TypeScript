@@ -52,7 +52,7 @@ namespace ts {
         function normalizeKey(key: string) {
             return getCanonicalFileName(normalizeSlashes(key));
         }
-        
+
         function clear() {
             files = {};
         }
@@ -100,6 +100,15 @@ namespace ts {
                 if (array[i] === value) {
                     return i;
                 }
+            }
+        }
+        return -1;
+    }
+
+    export function indexOfEq<T>(array: T[], v: T): number {
+        for (var i = 0, n = array.length; i < n; i++) {
+            if (array[i] === v) {
+              return i;
             }
         }
         return -1;

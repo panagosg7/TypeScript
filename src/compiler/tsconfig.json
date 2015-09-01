@@ -20,6 +20,11 @@
         "program.ts",
         "commandLineParser.ts",
         "tsc.ts",
-        "diagnosticInformationMap.generated.ts"
+        "diagnosticInformationMap.generated.ts",
+        "refscript/annotations.ts",
+        "refscript/syntax.ts",
+        "refscript/translate.ts",
+        "refscript/initializationStatistics.ts",
+        "refscript/types.ts"
     ]
 }

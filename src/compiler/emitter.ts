@@ -683,7 +683,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                         }
                     }
                 }
-                
+
                 function emitNodeWithCommentsAndWithSourcemap(node: Node) {
                     emitNodeConsideringCommentsOption(node, emitNodeWithSourceMap);
                 }
@@ -2047,13 +2047,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                 }
                 return false;
             }
-            
+
             function tryGetConstEnumValue(node: Node): number {
                 if (compilerOptions.isolatedModules) {
                     return undefined;
                 }
-                
-                return node.kind === SyntaxKind.PropertyAccessExpression || node.kind === SyntaxKind.ElementAccessExpression 
+
+                return node.kind === SyntaxKind.PropertyAccessExpression || node.kind === SyntaxKind.ElementAccessExpression
                     ? resolver.getConstantValue(<PropertyAccessExpression | ElementAccessExpression>node)
                     : undefined
             }
@@ -3124,7 +3124,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                 if (compilerOptions.module === ModuleKind.System) {
                     return;
                 }
-                
+
                 if (!exportEquals && exportSpecifiers && hasProperty(exportSpecifiers, name.text)) {
                     for (let specifier of exportSpecifiers[name.text]) {
                         writeLine();
@@ -3139,10 +3139,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                     }
                 }
             }
-            
+
             function emitExportSpecifierInSystemModule(specifier: ExportSpecifier): void {
                 Debug.assert(compilerOptions.module === ModuleKind.System);
-                
+
                 writeLine();
                 emitStart(specifier.name);
                 write(`${exportFunctionForFile}("`);
@@ -4942,7 +4942,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                 if (!node) {
                     return;
                 }
-                
+
                 switch (node.kind) {
                     case SyntaxKind.VoidKeyword:
                         write("void 0");
@@ -5360,10 +5360,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                     emitExportMemberAssignments(<Identifier>node.name);
                 }
             }
-            
+
             /*
-             * Some bundlers (SystemJS builder) sometimes want to rename dependencies. 
-             * Here we check if alternative name was provided for a given moduleName and return it if possible. 
+             * Some bundlers (SystemJS builder) sometimes want to rename dependencies.
+             * Here we check if alternative name was provided for a given moduleName and return it if possible.
              */
             function tryRenameExternalModule(moduleName: LiteralExpression): string {
                 if (currentSourceFile.renamedDependencies && hasProperty(currentSourceFile.renamedDependencies, moduleName.text)) {
@@ -5782,7 +5782,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
             function getExternalModuleNameText(importNode: ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration): string {
                 let moduleName = getExternalModuleName(importNode);
                 if (moduleName.kind === SyntaxKind.StringLiteral) {
-                    return tryRenameExternalModule(<LiteralExpression>moduleName) || getLiteralText(<LiteralExpression>moduleName); 
+                    return tryRenameExternalModule(<LiteralExpression>moduleName) || getLiteralText(<LiteralExpression>moduleName);
                 }
 
                 return undefined;
@@ -6184,7 +6184,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
 
             function emitSetters(exportStarFunction: string, dependencyGroups: DependencyGroup[]) {
                 write("setters:[");
-                
+
                 for (let i = 0; i < dependencyGroups.length; ++i) {
                     if (i !== 0) {
                         write(",");
@@ -6192,17 +6192,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
 
                     writeLine();
                     increaseIndent();
-                    
+
                     let group = dependencyGroups[i];
-                    
+
                     // derive a unique name for parameter from the first named entry in the group
                     let parameterName = makeUniqueName(forEach(group, getLocalNameForExternalImport) || "");
                     write(`function (${parameterName}) {`);
                     increaseIndent();
-                    
+
                     for(let entry of group) {
                         let importVariableName = getLocalNameForExternalImport(entry) || "";
-                        
+
                         switch (entry.kind) {
                             case SyntaxKind.ImportDeclaration:
                                 if (!(<ImportDeclaration>entry).importClause) {
@@ -6238,7 +6238,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                                             write(",");
                                             writeLine();
                                         }
-                                        
+
                                         let e = (<ExportDeclaration>entry).exportClause.elements[i];
                                         write(`"`);
                                         emitNodeWithCommentsAndWithoutSourcemap(e.name);
@@ -6283,7 +6283,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                         // - import declarations are not emitted since they are already handled in setters
                         // - export declarations with module specifiers are not emitted since they were already written in setters
                         // - export declarations without module specifiers are emitted preserving the order
-                        case SyntaxKind.FunctionDeclaration:                        
+                        case SyntaxKind.FunctionDeclaration:
                         case SyntaxKind.ImportDeclaration:
                             continue;
                         case SyntaxKind.ExportDeclaration:
@@ -6303,15 +6303,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                         default:
                             writeLine();
                             emit(statement);
-                    }                    
+                    }
                 }
                 decreaseIndent();
                 writeLine();
                 write("}"); // execute
             }
-            
+
             type DependencyGroup = Array<ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration>;
-            
+
             function emitSystemModule(node: SourceFile, startIndex: number): void {
                 collectExternalModuleInfo(node);
                 // System modules has the following shape
@@ -6331,7 +6331,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                     write(`"${node.moduleName}", `);
                 }
                 write("[");
-                
+
                 let groupIndices: Map<number> = {};
                 let dependencyGroups: DependencyGroup[] = [];
 
@@ -6351,7 +6351,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                     if (i !== 0) {
                         write(", ");
                     }
-                    
+
                     write(text);
                 }
                 write(`], function(${exportFunctionForFile}) {`);
@@ -6777,7 +6777,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                         return shouldEmitEnumDeclaration(<EnumDeclaration>node);
                 }
 
-                // If the node is emitted in specialized fashion, dont emit comments as this node will handle 
+                // If the node is emitted in specialized fashion, dont emit comments as this node will handle
                 // emitting comments when emitting itself
                 Debug.assert(!isSpecializedCommentHandling(node));
 
@@ -7063,7 +7063,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
              *        ^ => pos; the function will emit "comment1" in the emitJS
              */
             function emitTrailingCommentsOfPosition(pos: number) {
-                let trailingComments = filterComments(getTrailingCommentRanges(currentSourceFile.text, pos), /*onlyPinnedOrTripleSlashComments:*/ compilerOptions.removeComments); 
+                let trailingComments = filterComments(getTrailingCommentRanges(currentSourceFile.text, pos), /*onlyPinnedOrTripleSlashComments:*/ compilerOptions.removeComments);
 
                 // trailing comments are emitted at space/*trailing comment1 */space/*trailing comment*/
                 emitComments(currentSourceFile, writer, trailingComments, /*trailingSeparator*/ true, newLine, writeComment);
@@ -7131,7 +7131,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, Promi
                     }
                 }
             }
-            
+
             function emitShebang() {
                 let shebang = getShebang(currentSourceFile.text);
                 if (shebang) {
