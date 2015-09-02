@@ -2,7 +2,7 @@
 /// <reference path="./initializationStatistics.ts"/>
 /// <reference path="./syntax.ts"/>
 /// <reference path="./annotations.ts"/>
-
+/// <reference path="../../../ext/json-stringify-pretty-compact/index.ts"/>
 
 namespace ts {
 
@@ -283,7 +283,7 @@ namespace ts {
             function emitRefScriptWorker(node: Node) {
                 let helper = new RsHelper(undefined);   // TODO
                 let rsAST = nodeToRsAST(helper, node);
-                write(JSON.stringify(rsAST.serialize(), undefined, 2));
+                write(PrettyJSON.stringify(rsAST.serialize(), { maxLength: 120, indent: 2 }));
             }
 
             function writeRefScriptFile(emitOutput: string, writeByteOrderMark: boolean) {
@@ -561,9 +561,7 @@ namespace ts {
             // VariableStatement
             function variableStatementToRsStmt(helper: RsHelper, node: VariableStatement): RsStatement {
 
-                let annotations = leadingNodeAnnotations(node);
-                console.log(getTextOfNode(node) + " has " + annotations.length + " annotations");
-
+                let annotations = leadingNodeAnnotations(node);                
                 let binderAnnotations = <RsBindAnnotation[]>annotations.filter(a => a.kind() === AnnotKind.RawBind);
 
                 if (node.declarationList.declarations.length !== 1) {

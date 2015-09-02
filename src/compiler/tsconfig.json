@@ -9,6 +9,7 @@
     },
     "files": [
         "core.ts",
+        "../../ext/json-stringify-pretty-compact/index.ts",
         "sys.ts",
         "types.ts",
         "scanner.ts",
