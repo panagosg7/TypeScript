@@ -1,6 +1,9 @@
 /// <reference path="checker.ts"/>
 /// <reference path="declarationEmitter.ts"/>
 
+/// <reference path="refscript/translate.ts"/>
+
+
 /* @internal */
 namespace ts {
     export function isExternalModuleOrDeclarationFile(sourceFile: SourceFile) {

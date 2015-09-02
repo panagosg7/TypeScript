@@ -1335,6 +1335,10 @@ namespace ts {
          */
         emit(targetSourceFile?: SourceFile, writeFile?: WriteFileCallback, cancellationToken?: CancellationToken): EmitResult;
 
+        // RSC - begin
+        toRsc(targetSourceFile?: SourceFile, writeFile?: WriteFileCallback, cancellationToken?: CancellationToken): EmitResult;
+        // RSC - end
+
         getOptionsDiagnostics(cancellationToken?: CancellationToken): Diagnostic[];
         getGlobalDiagnostics(cancellationToken?: CancellationToken): Diagnostic[];
         getSyntacticDiagnostics(sourceFile?: SourceFile, cancellationToken?: CancellationToken): Diagnostic[];
@@ -2009,6 +2013,9 @@ namespace ts {
         Warning,
         Error,
         Message,
+        // RSC
+        Bug,
+        Unimplemented
     }
 
     export const enum ModuleResolutionKind {

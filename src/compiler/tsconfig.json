@@ -21,6 +21,7 @@
         "commandLineParser.ts",
         "tsc.ts",
         "diagnosticInformationMap.generated.ts",
+        "refscript/references.ts",
         "refscript/annotations.ts",
         "refscript/syntax.ts",
         "refscript/translate.ts",

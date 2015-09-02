@@ -1,6 +1,8 @@
 //<reference path='..\typescript.ts' />
+/// <reference path="./initializationStatistics.ts"/>
 
-module ts {
+
+namespace ts {
 
     export class RsHelper {
 
@@ -14,9 +16,9 @@ module ts {
             this._initValidator.validate(this._document, this._diagnostics);
         }
 
-        private _document: Document;
+        private _document: SourceFile;
 
-        public setDocument(document: Document) {
+        public setDocument(document: SourceFile) {
             this._document = document;
         }
 
@@ -185,5 +187,129 @@ module ts {
     //             {"errMsg":"BBB","errLoc":{"sp_start":{"line":1,"column":1},"sp_stop":{"line":1,"column":1}}}]},
     //  {"UnknownError":"Unkowntext"}]
 
+
+    function rsSrcSpanOfNode(node: Node) {
+        let file = getSourceFileOfNode(node);
+        let start = getLineAndCharacterOfPosition(file, node.pos);
+        let stop = getLineAndCharacterOfPosition(file, node.end);
+        return new RsSrcSpan(file.fileName, start, stop);
+    }
+
+    export function emitRscJSON(resolver: EmitResolver, host: EmitHost, targetSourceFile: SourceFile): EmitResult {
+
+        console.log("In emitRscJSON");
+
+        let compilerOptions = host.getCompilerOptions();
+        let languageVersion = compilerOptions.target || ScriptTarget.ES3;
+        let sourceMapDataList: SourceMapData[] = compilerOptions.sourceMap || compilerOptions.inlineSourceMap ? [] : undefined;
+        let diagnostics: Diagnostic[] = [];
+        let newLine = host.getNewLine();
+        let jsxDesugaring = host.getCompilerOptions().jsx !== JsxEmit.Preserve;
+        let shouldEmitJsx = (s: SourceFile) => (s.languageVariant === LanguageVariant.JSX && !jsxDesugaring);
+
+        if (targetSourceFile === undefined) {
+            forEach(host.getSourceFiles(), sourceFile => {
+                if (shouldEmitToOwnFile(sourceFile, compilerOptions)) {
+                    let jsFilePath = getOwnEmitOutputFilePath(sourceFile, host, shouldEmitJsx(sourceFile) ? ".jsx" : ".js");
+                    emitFile(jsFilePath, sourceFile);
+                }
+            });
+
+            if (compilerOptions.outFile || compilerOptions.out) {
+                emitFile(compilerOptions.outFile || compilerOptions.out);
+            }
+        }
+        else {
+            // targetSourceFile is specified (e.g calling emitter from language service or calling getSemanticDiagnostic from language service)
+            if (shouldEmitToOwnFile(targetSourceFile, compilerOptions)) {
+                let jsFilePath = getOwnEmitOutputFilePath(targetSourceFile, host, shouldEmitJsx(targetSourceFile) ? ".jsx" : ".js");
+                emitFile(jsFilePath, targetSourceFile);
+            }
+            else if (!isDeclarationFile(targetSourceFile) && (compilerOptions.outFile || compilerOptions.out)) {
+                emitFile(compilerOptions.outFile || compilerOptions.out);
+            }
+        }
+
+        // Sort and make the unique list of diagnostics
+        diagnostics = sortAndDeduplicateDiagnostics(diagnostics);
+
+        return {
+            emitSkipped: false,
+            diagnostics,
+            sourceMaps: sourceMapDataList
+        };
+
+        function emitFile(rscFilePath: string, sourceFile?: SourceFile) {
+            emitRefScript(rscFilePath, sourceFile);
+
+            // TODO
+            // if (compilerOptions.declaration) {
+            //     writeDeclarationFile(rscFilePath, sourceFile, host, resolver, diagnostics);
+            // }
+        }
+
+        function emitRefScript(rscFilePath: string, root?: SourceFile) {
+            let writer = createTextWriter(newLine);
+            let { write, writeTextOfNode, writeLine, increaseIndent, decreaseIndent } = writer;
+
+            let currentSourceFile: SourceFile;
+            // name of an exporter function if file is a System external module
+            // System.register([...], function (<exporter>) {...})
+            // exporting in System modules looks like:
+            // export var x; ... x = 1
+            // =>
+            // var x;... exporter("x", x = 1)
+            let exportFunctionForFile: string;
+
+            /** Write emitted output to disk */
+            let writeEmittedFiles = writeRefScriptFile;
+
+            let detachedCommentsInfo: { nodePos: number; detachedCommentEndPos: number }[];
+
+            let writeComment = writeCommentRange;
+
+            /** Emit a node */
+            let emit = emitRefScriptWorker;
+
+            if (root) {
+                // Do not call emit directly. It does not set the currentSourceFile.
+                emitSourceFile(root);
+            }
+            else {
+                forEach(host.getSourceFiles(), sourceFile => {
+                    if (!isExternalModuleOrDeclarationFile(sourceFile)) {
+                        emitSourceFile(sourceFile);
+                    }
+                });
+            }
+
+            writeLine();
+            writeEmittedFiles(writer.getText(), /*writeByteOrderMark*/ compilerOptions.emitBOM);
+            return;
+
+
+            function emitSourceFile(sourceFile: SourceFile): void {
+                currentSourceFile = sourceFile;
+                exportFunctionForFile = undefined;
+                emit(sourceFile);
+            }
+
+
+            function emitRefScriptWorker(node: Node) {
+                // TODO
+                console.log("In emitRefScriptWorker");
+
+            }
+
+
+            function writeRefScriptFile(emitOutput: string, writeByteOrderMark: boolean) {
+                writeFile(host, diagnostics, rscFilePath, emitOutput, writeByteOrderMark);
+            }
+
+        }
+
+
+
+    }
 
 }

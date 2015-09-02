@@ -361,7 +361,7 @@ namespace ts {
 
         function compileProgram(): ExitStatus {
             let diagnostics: Diagnostic[];
-            
+
             // First get and report any syntactic errors.
             diagnostics = program.getSyntacticDiagnostics();
 
@@ -384,22 +384,50 @@ namespace ts {
                     : ExitStatus.Success;
             }
 
-            // Otherwise, emit and report any errors we ran into.
-            let emitOutput = program.emit();
-            reportDiagnostics(emitOutput.diagnostics);
+
+            // RSC - disabling regular emit process
+            //
+            // // Otherwise, emit and report any errors we ran into.
+            // let emitOutput = program.emit();
+            //
+            // reportDiagnostics(emitOutput.diagnostics);
+            //
+            // // If the emitter didn't emit anything, then pass that value along.
+            // if (emitOutput.emitSkipped) {
+            //     return ExitStatus.DiagnosticsPresent_OutputsSkipped;
+            // }
+            //
+            // // The emitter emitted something, inform the caller if that happened in the presence
+            // // of diagnostics or not.
+            // if (diagnostics.length > 0 || emitOutput.diagnostics.length > 0) {
+            //     return ExitStatus.DiagnosticsPresent_OutputsGenerated;
+            // }
+            //
+            // return ExitStatus.Success;
+
+            // RSC - begin
+            console.log("Emitting rsc ...");
+
+            console.log("  toRsc in program: " + ("toRsc" in program));
+
+
+            let rscOutput = program.toRsc();
+
+            reportDiagnostics(rscOutput.diagnostics);
 
             // If the emitter didn't emit anything, then pass that value along.
-            if (emitOutput.emitSkipped) {
+            if (rscOutput.emitSkipped) {
                 return ExitStatus.DiagnosticsPresent_OutputsSkipped;
             }
 
             // The emitter emitted something, inform the caller if that happened in the presence
             // of diagnostics or not.
-            if (diagnostics.length > 0 || emitOutput.diagnostics.length > 0) {
+            if (diagnostics.length > 0 || rscOutput.diagnostics.length > 0) {
                 return ExitStatus.DiagnosticsPresent_OutputsGenerated;
             }
 
             return ExitStatus.Success;
+            // RSC - end
         }
     }
 
