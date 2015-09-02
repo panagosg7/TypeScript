@@ -408,9 +408,6 @@ namespace ts {
             // RSC - begin
             console.log("Emitting rsc ...");
 
-            console.log("  toRsc in program: " + ("toRsc" in program));
-
-
             let rscOutput = program.toRsc();
 
             reportDiagnostics(rscOutput.diagnostics);

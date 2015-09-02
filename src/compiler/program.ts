@@ -431,9 +431,6 @@ namespace ts {
             getTypeCount: () => getDiagnosticsProducingTypeChecker().getTypeCount(),
         };
 
-        console.log("Populating program: ");
-        console.log("  toRsc in program: " + ("toRsc" in program));
-
         return program;
 
         function getClassifiableNames() {
@@ -554,7 +551,6 @@ namespace ts {
 
         // RSC - begin
         function toRsc(sourceFile?: SourceFile, writeFileCallback?: WriteFileCallback, cancellationToken?: CancellationToken): EmitResult {
-            console.log("In toRsc ...");
             return runWithCancellationToken(() => toRscWorker(this, sourceFile, writeFileCallback, cancellationToken));
         }
         // RSC - end
@@ -590,8 +586,6 @@ namespace ts {
 
         // RSC - begin
         function toRscWorker(program: Program, sourceFile: SourceFile, writeFileCallback: WriteFileCallback, cancellationToken: CancellationToken): EmitResult {
-
-            console.log("in toRscWorker");
 
             // If the noEmitOnError flag is set, then check if we have any errors so far.  If so,
             // immediately bail out.  Note that we pass 'undefined' for 'sourceFile' so that we

@@ -150,6 +150,23 @@ namespace ts {
         return result;
     }
 
+    // RSC: ported from tsc v1.0.1.0
+    export function concatMap<T,U>(array: T[][], func: (v: T) => U): U[] {
+        var result: U[] = [];
+        for (var i = 0, n = array.length; i < n; i++) {
+            let ts: T[] = array[i];
+            let us: U[] = ts.map(func);
+            for (let j = 0, m = us.length; j < m; j++) {
+                result.push(us[j]);
+            }
+        }
+        return result;
+    }
+
+    export function concat<T, U>(array: T[][]): T[] {
+        return concatMap(array, (x: T) => x);
+    }
+
     export function concatenate<T>(array1: T[], array2: T[]): T[] {
         if (!array2 || !array2.length) return array1;
         if (!array1 || !array1.length) return array2;
