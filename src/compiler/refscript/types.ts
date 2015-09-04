@@ -9,24 +9,32 @@
 
 module ts {
 
-    export interface Serializable { toString(): string; }
-
-    export class RsType implements Serializable {
-        public toString(): string { throw new Error("BUG: Abstract in RsType toString()"); }
+    export class RsType implements RsType {
+        public toString(): string {
+            throw new Error("BUG: Abstract in RsType toString()");
+        }
     }
 
-    export class BoundedRsType {
-        constructor(private symbol: string, private type: Serializable) { }
+    export class RsBind {
+        constructor(private symbol: string, private type: RsType) { }
 
-        public toString() { return this.symbol + ": " + this.type.toString(); }
+        public toString() {
+            return this.symbol + ": " + this.type.toString();
+        }
     }
 
     export class TError extends RsType {
-        constructor(private msg: string) { super(); }
+        constructor(private msg: string) {
+            super();
+        }
 
-        public toString(): string { return "Error type: " + this.msg; }
+        public toString(): string {
+            return "Error type: " + this.msg;
+        }
 
-        public message(): string { return this.msg; }
+        public message(): string {
+            return this.msg;
+        }
     }
 
     export class TTopC extends RsType {
@@ -35,32 +43,70 @@ module ts {
 
     export var TTop = new TTopC();
 
+
+    export class TAnyC extends RsType {
+        public toString(): string {
+            return "top";
+        }
+    }
+
+    export var TAny = new TAnyC();
+
     export class TNumberC extends RsType {
-        public toString(): string { return "number"; }
+        public toString(): string {
+            return "number";
+        }
     }
 
     export var TNumber = new TNumberC();
 
     export class TStringC extends RsType {
-        public toString(): string { return "string"; }
+        public toString(): string {
+            return "string";
+        }
     }
 
     export var TString = new TStringC();
 
+    export class TStringLit extends RsType {
+        constructor(private literal: string) {
+            super();
+        }
+
+        public toString(): string {
+            return "\"" + this.literal + "\"";
+        }
+    }
+
     export class TBooleanC extends RsType {
-        public toString(): string { return "boolean"; }
+        public toString(): string {
+            return "boolean";
+        }
     }
 
     export var TBoolean = new TBooleanC();
 
     export class TVoidC extends RsType {
-        public toString(): string { return "void"; }
+        public toString(): string {
+            return "void";
+        }
     }
 
     export var TVoid = new TVoidC();
 
+    export class TUndefinedC extends RsType {
+        public toString(): string {
+            return "undefined";
+        }
+    }
+
+    export var TUndefined = new TUndefinedC();
+
+
     export class TObject extends RsType {
-        constructor(public fields: RsTypeMember[]) { super(); }
+        constructor(public fields: RsTypeMember[]) {
+            super();
+        }
 
         public toString(): string {
             var s = "";
@@ -71,55 +117,65 @@ module ts {
         }
     }
 
-	export class TAll extends RsType {
-		constructor(public param: string, public ty: RsType) { super(); }
+    export class TAll extends RsType {
+        constructor(public param: string, public ty: RsType) { super(); }
 
-		public toString(): string {
-			var s = "";
-			s += "forall ";
-			s += this.param;
-			s += " . "
-			s += this.ty.toString();
-			return s;
-		}
-	}
-
+        public toString(): string {
+            var s = "";
+            s += "forall ";
+            s += this.param;
+            s += " . "
+            s += this.ty.toString();
+            return s;
+        }
+    }
 
     export class RsFunctionLike extends RsType { }
 
     export class RsTFun extends RsFunctionLike {
-        constructor(private tParams: TTypeParam[], private argTs: BoundedRsType[], private returnT: Serializable) {
+        constructor(private typeParameters: RsTypeParam[], private parameters: RsBind[], private returnType: RsType) {
             super();
         }
 
         public toString(): string {
             var s = "";
-            if (this.tParams.length > 0) {
-                s += "forall " + this.tParams.map(p => p.toString()).join(" ") + " . ";
+            if (this.typeParameters.length > 0) {
+                s += angles(this.typeParameters.map(p => p.toString()).join(" "));
             }
-            s += "( ";
-            s += this.argTs.map(b => b.toString()).join(", ");
-            s += " ) => ";
-            s += this.returnT.toString();
+            s += parens(this.parameters.map(b => b.toString()).join(", "));
+            s += " => ";
+            s += this.returnType.toString();
             return s;
         }
     }
 
     export class RsMeth extends RsFunctionLike {
-        constructor(private tParams: TTypeParam[], private argTs: BoundedRsType[], private returnT: Serializable) {
+        constructor(private tParams: RsTypeParam[], private argTs: RsBind[], private returnT: RsType) {
             super();
         }
 
         public toString(): string {
             var s = "";
             if (this.tParams.length > 0) {
-                s += "forall " + this.tParams.map(p => p.toString()).join(" ") + " . ";
+                s += angles(this.tParams.map(p => p.toString()).join(" "));
             }
-            s += "( ";
-            s += this.argTs.map(b => b.toString()).join(", ");
-            s += " ): ";
+            s += parens(this.argTs.map(b => b.toString()).join(", "));
+            s += ": ";
             s += this.returnT.toString();
             return s;
+        }
+    }
+
+    export class RsTOr extends RsType {
+        constructor(private elements: RsType[]) {
+            super();
+        }
+
+        public toString(): string {
+            if (!this.elements || this.elements.length === 0) {
+                return "Top";
+            }
+            return this.elements.map(t => t.toString()).join(" + ");
         }
     }
 
@@ -139,61 +195,77 @@ module ts {
     }
 
     export class TArray extends RsType {
-        constructor(private eltT: Serializable) { super(); }
+        constructor(private eltT: RsType) {
+            super();
+        }
 
         public toString(): string { return "<" + this.eltT.toString() + ">"; }
     }
 
     export class TTypeReference extends RsType {
-        constructor(private name: string, private params: RsType[]) { super(); }
+        constructor(private name: string, private _arguments: RsType[]) {
+            super();
+        }
 
         public toString(): string {
             var s = this.name;
-            if (this.params && this.params.length > 0) {
-                s += "<" + this.params.map(t => t.toString()).join(", ") + ">";
+            if (this._arguments && this._arguments.length > 0) {
+                s += angles(this._arguments.map(t => t.toString()).join(", "));
             }
             return s;
         }
     }
 
-    export class TInterface implements Serializable {
+    export class TInterface implements RsType {
         constructor(private ref: TTypeReference, private type: TObject) { }
 
-        public toString() { return "type " + this.ref.toString() + " " + this.type.toString(); }
-    }
-
-    export class TTVar extends RsType {
-        constructor(public name: string) { super(); }
-
-        public toString() { return this.name; }
-    }
-
-
-    export class TTypeParam {
-        constructor(public name: string) { }
-
-        public toString(): string { return this.name; }
-    }
-
-    export class TTDef implements Serializable {
-        constructor(public name: string, public pars: TTypeParam[], private proto: TParentType, private elts: RsTypeMember[]) { }
-
-        public toString(): string {
-            var s = "";
-            s += name;
-            s += " ";
-            if (this.pars && this.pars.length > 0) {
-                s += "< " + this.pars.map(a => a.toString()).join(", ") + ">";
-            }
-            //XXX: not implemented yet in the nano parser
-            if (this.proto) {
-                s += this.proto.toString
-			}
-            return;
+        public toString() {
+            return "type " + this.ref.toString() + " " + this.type.toString();
         }
     }
 
-    export class TParentType implements Serializable {
+    export class TTVar extends RsType {
+        constructor(public name: string) {
+            super();
+        }
+
+        public toString() {
+            return this.name;
+        }
+    }
+
+    export class RsTypeParam {
+        constructor(public name: string, private constraint?: RsType) { }
+
+        public toString(): string {
+            let s = this.name;
+            if (this.constraint) {
+                s += "extends ";
+                s += this.constraint;
+            }
+            return s;
+        }
+    }
+
+    // export class TTypeDeclaration implements RsType {
+    //     constructor(public name: string, public pars: RsTypeParam[], private proto: TParentType, private elts: RsTypeMember[]) { }
+    //
+    //     public toString(): string {
+    //         var s = "";
+    //         s += name;
+    //         s += " ";
+    //         if (this.pars && this.pars.length > 0) {
+    //             s += "< " + this.pars.map(a => a.toString()).join(", ") + ">";
+    //         }
+    //         //XXX: not implemented yet in the nano parser
+    //         if (this.proto) {
+    //             s += this.proto.toString
+    //         }
+    //         return;
+    //     }
+    // }
+
+    export class TParentType implements RsType {
         constructor(private name: string, private targs: RsType[]) { }
 
         public toString(): string {
@@ -208,11 +280,11 @@ module ts {
      *
      * ****************************************************************************/
 
-    export class RsTypeMember implements Serializable { }
+    export class RsTypeMember implements RsType { }
 
     // CallSig
     export class RsCallSig extends RsTypeMember {
-        constructor(private type: RsType) {
+        constructor(private type: RsMeth) {
             super();
         }
 
@@ -224,7 +296,7 @@ module ts {
 
     // ConsSig
     export class RsConsSig extends RsTypeMember {
-        constructor(private type: RsType) {
+        constructor(private type: RsMeth) {
             super();
         }
 
@@ -233,12 +305,9 @@ module ts {
         }
     }
 
-
     // IndexSig; TODO
 
-
     // FieldSig
-    // TODO: Add mutability here
     export class RsFieldSig extends RsTypeMember {
         constructor(private name: string, private opt: boolean, private type: RsType) {
             super();
@@ -252,7 +321,7 @@ module ts {
 
     // MethSig
     export class RsMethSig extends RsTypeMember {
-		constructor(private name: string, private type: RsFunctionLike) {
+        constructor(private name: string, private type: RsFunctionLike) {
             super();
         }
 
@@ -272,21 +341,29 @@ module ts {
         }
     }
 
-	// StatSig:  These can't appear in object types
+    // StatSig:  These can't appear in object types
 
 
-	////////////////////////////////
-	// Mutability kind
+    ////////////////////////////////
+    // Mutability kind
 
-	export enum MutabilityKind {
-		MutableK,
-		ImmutableK,
-		ReadOnlyK,
-		ParametricK,
-		PresetK,		//set by caller
-		DefaultK
-	}
+    export enum MutabilityKind {
+        MutableK,
+        ImmutableK,
+        ReadOnlyK,
+        ParametricK,
+        PresetK,		//set by caller
+        DefaultK
+    }
 
+
+    function angles(s: string) {
+        return "<" + s + ">";
+    }
+
+    function parens(s: string) {
+        return "(" + s + ")";
+    }
 
 
 }

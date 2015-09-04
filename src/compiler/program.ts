@@ -551,7 +551,9 @@ namespace ts {
 
         // RSC - begin
         function toRsc(sourceFile?: SourceFile, writeFileCallback?: WriteFileCallback, cancellationToken?: CancellationToken): EmitResult {
-            return runWithCancellationToken(() => toRscWorker(this, sourceFile, writeFileCallback, cancellationToken));
+            // PV: this here is intened to be of type Program - This is the ugly part of avoid classes whatsoever
+            let program = <Program>this;
+            return runWithCancellationToken(() => toRscWorker(program, sourceFile, writeFileCallback, cancellationToken));
         }
         // RSC - end
 
@@ -606,10 +608,9 @@ namespace ts {
 
             let start = new Date().getTime();
 
-            let emitResult = emitRscJSON(
-                emitResolver,
-                getEmitHost(writeFileCallback),
-                sourceFile);
+            let checker = program.getTypeChecker();
+
+            let emitResult = emitRscJSON(emitResolver, getEmitHost(writeFileCallback), sourceFile, checker);
 
             emitTime += new Date().getTime() - start;
             return emitResult;

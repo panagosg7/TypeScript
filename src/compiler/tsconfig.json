@@ -27,6 +27,7 @@
         "refscript/syntax.ts",
         "refscript/translate.ts",
         "refscript/initializationStatistics.ts",
-        "refscript/types.ts"
+        "refscript/types.ts",
+        "refscript/overloadStatistics.ts"
     ]
 }

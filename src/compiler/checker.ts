@@ -75,6 +75,7 @@ namespace ts {
             getShorthandAssignmentValueSymbol,
             getTypeAtLocation: getTypeOfNode,
             typeToString,
+            signatureToString,
             getSymbolDisplayBuilder,
             symbolToString,
             getAugmentedPropertiesOfType,

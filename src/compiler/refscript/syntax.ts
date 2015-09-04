@@ -90,9 +90,9 @@ module ts {
     }
 
     export class RsAnnotatedAST extends RsAST {
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[]) { super(); }
+        constructor(public span: RsSrcSpan, public ann: Annotation[]) { super(); }
 
-        public mapAnn<T>(f: (a: RsAnnotation) => T): T[] {
+        public mapAnn<T>(f: (a: Annotation) => T): T[] {
             return this.ann.filter(a => a !== null).map(f);
         }
 
@@ -113,7 +113,7 @@ module ts {
     }
 
     export class RsId extends RsAnnotatedAST {
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: string) { super(span, ann); }
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: string) { super(span, ann); }
 
         public serialize(): any {
             return this._toAeson("Id", [this.id], AesonCtor.NO_CTOR);
@@ -124,7 +124,7 @@ module ts {
     export interface IRsVarDeclLike extends IRsAST {
         serialize(): any;
         span: RsSrcSpan;
-        ann: RsAnnotation[];
+        ann: Annotation[];
     }
 
     export class RsVarDecl extends RsAnnotatedAST implements IRsVarDeclLike {
@@ -132,7 +132,7 @@ module ts {
             return this._toAeson("VarDecl", [this.name.serialize(), this.exp.serialize()], AesonCtor.NO_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public name: RsId, public exp: IRsMaybe<RsExpression>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public name: RsId, public exp: IRsMaybe<RsExpression>) {
             super(span, ann);
         }
     }
@@ -142,7 +142,7 @@ module ts {
             return this._toAeson("PropId", [this.f.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public f: RsId) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public f: RsId) {
             super(span, ann);
         }
     }
@@ -152,7 +152,7 @@ module ts {
             return this._toAeson("PropString", [this.s], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public s: string) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public s: string) {
             super(span, ann);
         }
     }
@@ -162,7 +162,7 @@ module ts {
             return this._toAeson("PropNum", [this.n], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public n: number) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public n: number) {
             super(span, ann);
         }
     }
@@ -177,7 +177,7 @@ module ts {
             return this._toAeson("NoInit", [], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[]) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[]) {
             super();
         }
     }
@@ -187,7 +187,7 @@ module ts {
             return this._toAeson("VarInit", this.vds.serialize(), AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public vds: RsList<RsVarDecl>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public vds: RsList<RsVarDecl>) {
             super();
         }
     }
@@ -388,7 +388,7 @@ module ts {
             return this._toAeson("LVar", [this.s], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public s: string) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public s: string) {
             super(span, ann);
         }
     }
@@ -398,7 +398,7 @@ module ts {
             return this._toAeson("LDot", [this.exp.serialize(), this.str], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public exp: RsExpression, public str: string) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public exp: RsExpression, public str: string) {
             super(span, ann);
         }
     }
@@ -408,7 +408,7 @@ module ts {
             return this._toAeson("LBracket", [this.e1.serialize(), this.e2.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public e1: RsExpression, public e2: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public e1: RsExpression, public e2: RsExpression) {
             super(span, ann);
         }
     }
@@ -423,7 +423,7 @@ module ts {
             return this._toAeson("InfixExpr", [this.op.serialize(), this.operand1.serialize(), this.operand2.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public op: RsInfixOp, public operand1: RsExpression, public operand2: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public op: RsInfixOp, public operand1: RsExpression, public operand2: RsExpression) {
             super(span, ann);
         }
     }
@@ -433,7 +433,7 @@ module ts {
             return this._toAeson("CondExpr", [this.cond.serialize(), this.exp1.serialize(), this.exp2.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public cond: RsExpression, public exp1: RsExpression, public exp2: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public cond: RsExpression, public exp1: RsExpression, public exp2: RsExpression) {
             super(span, ann);
         }
     }
@@ -443,7 +443,7 @@ module ts {
             return this._toAeson("NumLit", [this.num], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public num: number) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public num: number) {
             super(span, ann);
         }
     }
@@ -453,7 +453,7 @@ module ts {
             return this._toAeson("IntLit", [this.num], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public num: number) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public num: number) {
             super(span, ann);
         }
     }
@@ -463,7 +463,7 @@ module ts {
             return this._toAeson("HexLit", [this.num], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public num: string) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public num: string) {
             super(span, ann);
         }
     }
@@ -480,7 +480,7 @@ module ts {
             return this._toAeson("StringLit", [newStr], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public str: string) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public str: string) {
             super(span, ann);
         }
     }
@@ -490,7 +490,7 @@ module ts {
             return this._toAeson("FuncExpr", [this.id.serialize(), this.args.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: IRsMaybe<RsId>, public args: RsList<RsId>, public body: RsList<RsStatement>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: IRsMaybe<RsId>, public args: RsList<RsId>, public body: RsList<RsStatement>) {
             super(span, ann);
         }
     }
@@ -500,7 +500,7 @@ module ts {
             return this._toAeson("VarRef", [this.id.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: RsId) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId) {
             super(span, ann);
         }
     }
@@ -510,7 +510,7 @@ module ts {
             return this._toAeson("DotRef", [this.expression.serialize(), this.id.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public expression: RsExpression, public id: RsId) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public expression: RsExpression, public id: RsId) {
             super(span, ann);
         }
     }
@@ -520,7 +520,7 @@ module ts {
             return this._toAeson("BracketRef", [this.e1.serialize(), this.e2.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public e1: RsExpression, public e2: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public e1: RsExpression, public e2: RsExpression) {
             super(span, ann);
         }
     }
@@ -530,7 +530,7 @@ module ts {
             return this._toAeson("CallExpr", [this.target.serialize(), this.args.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public target: RsExpression, public args: RsList<RsExpression>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public target: RsExpression, public args: RsList<RsExpression>) {
             super(span, ann);
         }
     }
@@ -540,7 +540,7 @@ module ts {
             return this._toAeson("ObjectLit", [this.bindings.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public bindings: RsList<RsAST>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public bindings: RsList<RsAST>) {
             super(span, ann);
         }
     }
@@ -550,7 +550,7 @@ module ts {
             return this._toAeson("AssignExpr", [this.assignOp.serialize(), this.lval.serialize(), this.expression.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public assignOp: RsAssignOp, public lval: RsLValue, public expression: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public assignOp: RsAssignOp, public lval: RsLValue, public expression: RsExpression) {
             super(span, ann);
         }
     }
@@ -560,7 +560,7 @@ module ts {
             return this._toAeson("ThisRef", [], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[]) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[]) {
             super(span, ann);
         }
     }
@@ -570,7 +570,7 @@ module ts {
             return this._toAeson("SuperRef", [], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[]) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[]) {
             super(span, ann);
         }
     }
@@ -580,7 +580,7 @@ module ts {
             return this._toAeson("NullLit", [], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[]) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[]) {
             super(span, ann);
         }
     }
@@ -590,7 +590,7 @@ module ts {
             return this._toAeson("BoolLit", [this.b], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public b: boolean) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public b: boolean) {
             super(span, ann);
         }
     }
@@ -600,7 +600,7 @@ module ts {
             return this._toAeson("NewExpr", [this.e.serialize(), this.es.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public e: RsExpression, public es: RsList<RsExpression>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public e: RsExpression, public es: RsList<RsExpression>) {
             super(span, ann);
         }
     }
@@ -610,7 +610,7 @@ module ts {
             return this._toAeson("UnaryAssignExpr", [this.op.serialize(), this.lval.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public op: RsUnaryAssignOp, public lval: RsLValue) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public op: RsUnaryAssignOp, public lval: RsLValue) {
             super(span, ann);
         }
     }
@@ -620,7 +620,7 @@ module ts {
             return this._toAeson("PrefixExpr", [this.op.serialize(), this.exp.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public op: RsPrefixOp, public exp: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public op: RsPrefixOp, public exp: RsExpression) {
             super(span, ann);
         }
     }
@@ -630,7 +630,7 @@ module ts {
             return this._toAeson("ArrayLit", [this.members.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public members: RsList<RsExpression>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public members: RsList<RsExpression>) {
             super(span, ann);
         }
     }
@@ -640,7 +640,7 @@ module ts {
             return this._toAeson("Cast", [this.expression.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public expression: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public expression: RsExpression) {
             super(span, ann);
         }
     }
@@ -659,7 +659,7 @@ module ts {
             return this._toAeson("Constructor", [this.args.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public args: RsList<RsId>, public body: RsList<RsStatement>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public args: RsList<RsId>, public body: RsList<RsStatement>) {
             super(span, ann);
         }
     }
@@ -669,7 +669,7 @@ module ts {
             return this._toAeson("MemberVarDecl", [this.sta, this.name.serialize(), this.exp.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public sta: boolean, public name: RsId, public exp: IRsMaybe<RsExpression>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public sta: boolean, public name: RsId, public exp: IRsMaybe<RsExpression>) {
             super(span, ann);
         }
     }
@@ -679,7 +679,7 @@ module ts {
             return this._toAeson("MemberMethDef", [this.sta, this.name.serialize(), this.args.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public sta: boolean, public name: RsId, public args: RsList<RsId>, public body: RsList<RsStatement>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public sta: boolean, public name: RsId, public args: RsList<RsId>, public body: RsList<RsStatement>) {
             super(span, ann);
         }
     }
@@ -689,7 +689,7 @@ module ts {
             return this._toAeson("MemberMethDecl", [this.sta, this.name.serialize(), this.args.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public sta: boolean, public name: RsId, public args: RsList<RsId>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public sta: boolean, public name: RsId, public args: RsList<RsId>) {
             super(span, ann);
         }
     }
@@ -708,7 +708,7 @@ module ts {
             return this._toAeson("EmptyStmt", [], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[]) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[]) {
             super(span, ann);
         }
     }
@@ -718,7 +718,7 @@ module ts {
             return this._toAeson("ExprStmt", [this.exp.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public exp: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public exp: RsExpression) {
             super(span, ann);
         }
     }
@@ -728,7 +728,7 @@ module ts {
             return this._toAeson("VarDeclStmt", [this.varDecls.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public varDecls: RsList<RsVarDecl>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public varDecls: RsList<RsVarDecl>) {
             super(span, ann);
         }
     }
@@ -738,7 +738,7 @@ module ts {
             return this._toAeson("FunctionStmt", [this.id.serialize(), this.args.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: RsId, public args: RsList<RsId>, public body: RsList<RsStatement>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public args: RsList<RsId>, public body: RsList<RsStatement>) {
             super(span, ann);
         }
     }
@@ -748,7 +748,7 @@ module ts {
             return this._toAeson("FuncCtorStmt", [this.id.serialize(), this.args.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: RsId, public args: RsList<RsId>, public body: RsList<RsStatement>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public args: RsList<RsId>, public body: RsList<RsStatement>) {
             super(span, ann);
         }
     }
@@ -758,7 +758,7 @@ module ts {
             return this._toAeson("FuncAmbDecl", [this.id.serialize(), this.args.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: RsId, public args: RsList<RsId>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public args: RsList<RsId>) {
             super(span, ann);
         }
     }
@@ -768,7 +768,7 @@ module ts {
             return this._toAeson("FuncOverload", [this.id.serialize(), this.args.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: RsId, public args: RsList<RsId>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public args: RsList<RsId>) {
             super(span, ann);
         }
     }
@@ -778,7 +778,7 @@ module ts {
             return this._toAeson("ReturnStmt", [this.expression.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public expression: IRsMaybe<RsExpression>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public expression: IRsMaybe<RsExpression>) {
             super(span, ann);
         }
     }
@@ -788,7 +788,7 @@ module ts {
             return this._toAeson("BlockStmt", [this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public body: RsList<RsStatement>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public body: RsList<RsStatement>) {
             super(span, ann);
         }
     }
@@ -798,7 +798,7 @@ module ts {
             return this._toAeson("ClassStmt", [this.id.serialize(), this.extendsClass.serialize(), this.implementsInterfaces.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: RsId, public extendsClass: IRsMaybe<RsId>, public implementsInterfaces: RsList<RsId>, public body: RsList<RsClassElt>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public extendsClass: IRsMaybe<RsId>, public implementsInterfaces: RsList<RsId>, public body: RsList<RsClassElt>) {
             super(span, ann);
         }
     }
@@ -808,7 +808,7 @@ module ts {
             return this._toAeson("EnumStmt", [this.id.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public id: RsId, public body: RsList<RsEnumElt>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public body: RsList<RsEnumElt>) {
             super(span, ann);
         }
     }
@@ -818,7 +818,7 @@ module ts {
             return this._toAeson("WhileStmt", [this.exp.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public exp: RsExpression, public body: RsStatement) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public exp: RsExpression, public body: RsStatement) {
             super(span, ann);
         }
     }
@@ -828,7 +828,7 @@ module ts {
             return this._toAeson("ForInStmt", [this.init.serialize(), this.exp.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public init: RsForInInit, public exp: RsExpression, public body: RsStatement) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public init: RsForInInit, public exp: RsExpression, public body: RsStatement) {
             super(span, ann);
         }
     }
@@ -838,7 +838,7 @@ module ts {
             return this._toAeson("ForStmt", [this.init.serialize(), this.test.serialize(), this.inc.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public init: RsForInit, public test: IRsMaybe<RsExpression>, public inc: IRsMaybe<RsExpression>, public body: RsStatement) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public init: RsForInit, public test: IRsMaybe<RsExpression>, public inc: IRsMaybe<RsExpression>, public body: RsStatement) {
             super(span, ann);
         }
     }
@@ -848,7 +848,7 @@ module ts {
             return this._toAeson("IfStmt", [this.cond.serialize(), this.s1.serialize(), this.s2.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public cond: RsExpression, public s1: RsStatement, public s2: RsStatement) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public cond: RsExpression, public s1: RsStatement, public s2: RsStatement) {
             super(span, ann);
         }
     }
@@ -858,7 +858,7 @@ module ts {
             return this._toAeson("IfSingleStmt", [this.cond.serialize(), this.s.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public cond: RsExpression, public s: RsStatement) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public cond: RsExpression, public s: RsStatement) {
             super(span, ann);
         }
     }
@@ -868,7 +868,7 @@ module ts {
             return this._toAeson("ThrowStmt", [this.expression.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public expression: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public expression: RsExpression) {
             super(span, ann);
         }
     }
@@ -878,7 +878,7 @@ module ts {
             return this._toAeson("ModuleStmt", [this.name.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public name: RsId, public body: RsList<RsStatement>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public name: RsId, public body: RsList<RsStatement>) {
             super(span, ann);
         }
     }
@@ -888,7 +888,7 @@ module ts {
             return this._toAeson("IfaceStmt", [this.name.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public name: RsId) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public name: RsId) {
             super(span, ann);
         }
     }
@@ -901,7 +901,7 @@ module ts {
             return this._toAeson("EnumElt", [this.name.serialize(), this.exp.serialize()], AesonCtor.NO_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: RsAnnotation[], public name: RsId, public exp: RsExpression) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public name: RsId, public exp: RsExpression) {
             super(span, ann);
         }
     }

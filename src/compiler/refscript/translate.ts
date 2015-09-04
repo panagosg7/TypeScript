@@ -6,19 +6,15 @@
 
 namespace ts {
 
-    export class RsHelper {
+    export class RsTranslationState {
 
-        private _initValidator: InitializationValidator;
-
-        constructor(private _checker: TypeChecker) {
-            this._initValidator = new InitializationValidator();
-        }
+        private _initValidator = new InitializationValidator();
+        private _parentNode: Node[] = [];
+        private _document: SourceFile;
 
         public ctorValidate() {
             this._initValidator.validate(this._document, this._diagnostics);
         }
-
-        private _document: SourceFile;
 
         public setDocument(document: SourceFile) {
             this._document = document;
@@ -30,33 +26,18 @@ namespace ts {
 
         private _diagnostics: Diagnostic[] = [];
 
-        // public getDeclForAST(ast: Node): PullDecl {
-        //     return this._document._getDeclForAST(ast);
-        // }
-
-        public getSymbolForAST(ast: Node): Symbol {
-            return this._checker.getSymbolAtLocation(ast);
-        }
-
-        public getTypeForAST(ast: Node): Type {
-            return this._checker.getTypeAtLocation(ast);
-        }
-
         public isLibrary(ast: Node): boolean {
             return getSourceFileOfNode(ast).text.indexOf("lib.d.ts") === -1;
         }
 
         public postDiagnostic(ast: Node, diagnosticMsg: DiagnosticMessage, _arguments: any[] = null, additionalLocations: Location[] = null) {
-            // var diagnostic = new Diagnostic(ast.fileName(), this._document.lineMap(), ast.start(), ast.width(), diagnosticKey, _arguments, additionalLocations);
-            var diagnostic = createDiagnosticForNode(ast, diagnosticMsg, _arguments);
+            let diagnostic = createDiagnosticForNode(ast, diagnosticMsg, _arguments);
             this._diagnostics.push(diagnostic);
         }
 
         public diagnostics(): Diagnostic[] {
             return this._diagnostics;
         }
-
-        private _parentNode: Node[] = [];
 
         public getParentNode(): Node {
             if (this._parentNode && this._parentNode.length > 0) {
@@ -186,7 +167,7 @@ namespace ts {
         return new RsSrcSpan(file.fileName, start, stop);
     }
 
-    export function emitRscJSON(resolver: EmitResolver, host: EmitHost, targetSourceFile: SourceFile): EmitResult {
+    export function emitRscJSON(resolver: EmitResolver, host: EmitHost, targetSourceFile: SourceFile, checker: TypeChecker): EmitResult {
 
         let compilerOptions = host.getCompilerOptions();
         let languageVersion = compilerOptions.target || ScriptTarget.ES3;
@@ -281,8 +262,8 @@ namespace ts {
             }
 
             function emitRefScriptWorker(node: Node) {
-                let helper = new RsHelper(undefined);   // TODO
-                let rsAST = nodeToRsAST(helper, node);
+                let state = new RsTranslationState();
+                let rsAST = nodeToRsAST(state, node);
                 write(PrettyJSON.stringify(rsAST.serialize(), { maxLength: 120, indent: 2 }));
             }
 
@@ -290,155 +271,162 @@ namespace ts {
                 writeFile(host, diagnostics, rscFilePath, emitOutput, writeByteOrderMark);
             }
 
-            function nodeToRsAST(helper: RsHelper, node: Node): RsAST {
-
+            function nodeToRsAST(state: RsTranslationState, node: Node): RsAST {
                 switch (node.kind) {
                     case SyntaxKind.SourceFile:
-                        return sourceFileNodeToRsAST(helper, <SourceFile>node);
+                        return sourceFileNodeToRsAST(state, <SourceFile>node);
                 }
 
                 throw new Error("UNIMPLEMENTED nodeToRsAST for " + SyntaxKind[node.kind]);
-
             }
 
-            function nodeToRsExp(helper: RsHelper, node: Expression): RsExpression {
-
+            function nodeToRsExp(state: RsTranslationState, node: Expression): RsExpression {
                 switch (node.kind) {
                     case SyntaxKind.BinaryExpression:
-                        return binaryExpressionToRsExp(helper, <BinaryExpression>node);
+                        return binaryExpressionToRsExp(state, <BinaryExpression>node);
                     case SyntaxKind.FirstLiteralToken:
-                        return literalExpressionToRsExp(helper, <LiteralExpression>node);
+                        return literalExpressionToRsExp(state, <LiteralExpression>node);
                     case SyntaxKind.Identifier:
-                        return identifierToRsExp(helper, <Identifier>node);
+                        return identifierToRsExp(state, <Identifier>node);
+                    case SyntaxKind.CallExpression:
+                        return callExpressionToRsExp(state, <CallExpression>node);
+                    case SyntaxKind.ArrayLiteralExpression:
+                        return arrayLiteralExpressionToRsExp(state, <ArrayLiteralExpression>node);
+                    case SyntaxKind.ElementAccessExpression:
+                        return elementAccessExpressionToRsExp(state, <ElementAccessExpression>node);
+                    case SyntaxKind.PropertyAccessExpression:
+                        return propertyAccessExpressionToRsExp(state, <PropertyAccessExpression>node);
+
                 }
 
                 throw new Error("UNIMPLEMENTED nodeToRsExp for " + SyntaxKind[node.kind]);
                 return undefined;
-
             }
 
-            function nodeToRsStmt(helper: RsHelper, node: Statement): RsStatement {
-
+            function nodeToRsStmt(state: RsTranslationState, node: Statement): RsStatement {
                 switch (node.kind) {
                     case SyntaxKind.FunctionDeclaration:
-                        return functionDeclarationToRsStmt(helper, <FunctionDeclaration>node);
-                    case SyntaxKind.ExpressionStatement: helper
-                        return expressionStatementToRsStmt(helper, <ExpressionStatement>node);
+                        return functionDeclarationToRsStmt(state, <FunctionDeclaration>node);
+                    case SyntaxKind.ExpressionStatement: state
+                        return expressionStatementToRsStmt(state, <ExpressionStatement>node);
                     case SyntaxKind.VariableStatement:
-                        return variableStatementToRsStmt(helper, <VariableStatement>node);
+                        return variableStatementToRsStmt(state, <VariableStatement>node);
+                    case SyntaxKind.IfStatement:
+                        return ifStatementToRsStmt(state, <IfStatement>node);
+                    case SyntaxKind.Block:
+                        return blockToRsStmt(state, <Block>node);
+                    case SyntaxKind.ReturnStatement:
+                        return returnStatementToRsStmt(state, <ReturnStatement>node);
                 }
 
                 throw new Error("UNIMPLEMENTED nodeToRsStmt for " + SyntaxKind[node.kind]);
                 return undefined;
-
             }
 
-            function sourceFileNodeToRsAST(helper: RsHelper, node: SourceFile): RsAST {
-                return nodeArrayToRsAST(helper, node.statements, nodeToRsStmt);
+            function sourceFileNodeToRsAST(state: RsTranslationState, node: SourceFile): RsAST {
+                return nodeArrayToRsAST(state, node.statements, nodeToRsStmt);
             }
 
-            function nodeArrayToRsAST<S extends Node, T extends RsAST>(helper: RsHelper, node: NodeArray<S>, mapper: (helper: RsHelper, node: S) => T): RsList<T> {
-                return new RsList(node.map(n => mapper(helper, n)));
+            function nodeArrayToRsAST<S extends Node, T extends RsAST>(state: RsTranslationState, node: NodeArray<S>, mapper: (state: RsTranslationState, node: S) => T): RsList<T> {
+                return new RsList(node.map(n => mapper(state, n)));
             }
 
-            function nodeToRsId(helper: RsHelper, node: Node): RsId {
-
+            function nodeToRsId(state: RsTranslationState, node: Node): RsId {
                 switch (node.kind) {
                     case SyntaxKind.Identifier:
-                        return new RsId(nodeToSrcSpan(node), /* TODO anns */[], (<Identifier>node).text);
+                        return new RsId(nodeToSrcSpan(node), [], (<Identifier>node).text);
+                    case SyntaxKind.Parameter:
+                        return new RsId(nodeToSrcSpan(node), [], getTextOfNode((<ParameterDeclaration>node).name));
                 }
+
                 throw new Error("UNIMPLEMENTED nodeToRsId for " + SyntaxKind[node.kind]);
                 return undefined;
-
             }
 
 
             // FunctionDeclaration
-            function functionDeclarationToRsStmt(helper: RsHelper, node: FunctionDeclaration): RsStatement {
+            function functionDeclarationToRsStmt(state: RsTranslationState, node: FunctionDeclaration): RsStatement {
 
-                //
-                // node.callSignature.parameterList.parameters.toNonSeparatorArray().forEach(p => {
-                //     if (p.equalsValueClause) {
-                //         helper.postDiagnostic(node, DiagnosticCode.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [p.identifier.text()]);
-                //     }
-                // });
-                //
-                // var name = node.identifier.text();
-                // var anns = leadingnodeAnnotations(node.firstToken());
-                //
-                // var declID = PullHelpers.getSignatureForFuncDecl(helper.getDeclForAST(node)).signature.pullSymbolID;
-                //
-                // var decl: PullDecl = helper.getDeclForAST(node);
-                //
-                // if (node.modifiers.toArray().some(m => m.tokenKind === SyntaxKind.ExportKeyword)) {
-                //     anns.push(new RsAnnotation(node.getSourceSpan(helper), AnnotKind.RawExported, ""));
-                // }
-                //
-                // var bindAnns: RsBindAnnotation[] = <RsBindAnnotation[]> anns.filter(a => a.kind() === AnnotKind.RawBind);
-                // var bindAnnNames: string[] = bindAnns.map(a => (<RsBindAnnotation>a).binderName(node, helper));
-                //
-                // if (bindAnnNames.length === 0) {
-                //     // no annotation -- get the TS inferred one
-                //     var type = decl.getSignatureSymbol().toRsTFun();
-                //     var typeStr = type.toString();
-                //     anns.push(new RsBindAnnotation(helper.getSourceSpan(node), AnnotKind.RawBind, Assignability.AErrorAssignability, node.identifier.text() + " :: " + typeStr));
-                // }
-                // else if (bindAnnNames.length !== 1 || bindAnnNames[0] !== name) {
-                //     helper.postDiagnostic(node, DiagnosticCode.Function_0_can_have_at_most_one_type_annotation, [name]);
-                // }
-                //
-                // if (!node.block) {
-                //     if (node.modifiers.toArray().some(m => m.tokenKind === SyntaxKind.DeclareKeyword)) {
-                //         // Ambient function declaration
-                //         return new RsFunctionAmbientDecl(
-                //             helper.getSourceSpan(node), anns, node.identifier.toRsId(helper),
-                //             <RsList<RsId>>node.callSignature.parameterList.parameters.toRsAST(helper));
-                //     }
-                //     else {
-                //         return new RsFunctionOverload(
-                //             helper.getSourceSpan(node), anns, node.identifier.toRsId(helper),
-                //             <RsList<RsId>>node.callSignature.parameterList.parameters.toRsAST(helper));
-                //     }
-                // }
-                // else {
-                //
-                //     // XXX: Disabling node for now
-                //
-                //
-                //     //var funcName = node.identifier.text();
-                //     // if (/^[A-Z]/.test(funcName)) {
-                //     //	// Constructor Function
-                //     //	return new RsFuncCtorStmt(
-                //     //		helper.getSourceSpan(node), anns, node.identifier.toRsId(helper),
-                //     //		<RsASTList<RsId>>node.callSignature.parameterList.parameters.toRsAST(helper),
-                //     //		new RsASTList([node.block.toRsStmt(helper)]));
-                //     //}
-                //     //else {
-                //     // Function definition
-                //     return new RsFunctionStmt(
-                //         helper.getSourceSpan(node), anns, node.identifier.toRsId(helper),
-                //         <RsList<RsId>>node.callSignature.parameterList.parameters.toRsAST(helper),
-                //         new RsList([node.block.toRsStmt(helper)]));
-                //     //}
-                // }
+                // XXX: Only handle non-ambient declarations for the moment
+                if (!node.body) {
+                    return new RsEmptyStmt(nodeToSrcSpan(node), []);
+                }
 
-                return undefined;
+                node.parameters.forEach(parameter => {
+                    if (parameter.initializer) {
+                        state.postDiagnostic(node, Diagnostics.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [getTextOfNode(parameter)]);
+                    }
+                });
 
+                let nameText = node.name.text;
+                let annotations: Annotation[] = []
+
+                // Add the 'exported' annotation
+                if (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
+                    annotations = annotations.concat(new ExportedAnnotation(nodeToSrcSpan(node)));
+                }
+
+                let type = checker.getTypeAtLocation(node);
+                let signatures = checker.getSignaturesOfType(type, SignatureKind.Call);
+                // console.log("TYPE: " + checker.typeToString(type));
+
+                let functionDeclarationAnnotations = concat(signatures.map(signature => {
+                    // console.log("SIG: " + checker.signatureToString(signature))
+                    let signatureDeclaration = signature.declaration;
+                    let sourceSpan = nodeToSrcSpan(signatureDeclaration);
+                    // these are binder annotations
+                    let binderAnnotations = nodeAnnotations(signatureDeclaration, makeFunctionDeclarationAnnotation);
+                    if (binderAnnotations.length === 0) {
+                        // console.log("    No binders found -- will produce new type: " + checker.signatureToString(signature, signatureDeclaration, TypeFormatFlags.NoTruncation));
+                        // No signature annotation on this declaration -> use the one TS infers
+                        // return signatureToRsTFun(signature).map(functionType => new FunctionDeclarationAnnotation(sourceSpan, functionType.toString()));
+                        return [new FunctionDeclarationAnnotation(sourceSpan, checker.signatureToString(signature, signatureDeclaration, TypeFormatFlags.NoTruncation))];
+                    }
+                    else {
+                        // console.log("    Binder found: " + binderAnnotations[0].getContent());
+                        return binderAnnotations;
+                    }
+                }));
+                annotations = annotations.concat(functionDeclarationAnnotations);
+
+                return new RsFunctionStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name), nodeArrayToRsAST(state, node.parameters, nodeToRsId),
+                    new RsList(node.body.statements.map(statement => nodeToRsStmt(state, statement))));
             }
 
             // Identifier
-            function identifierToRsExp(helper: RsHelper, node: Identifier): RsVarRef {
-                return new RsVarRef(nodeToSrcSpan(node), [] /*token.getRsAnnotations(AnnotContext.OtherContext */, nodeToRsId(helper, node));
+            function identifierToRsExp(state: RsTranslationState, node: Identifier): RsVarRef {
+                return new RsVarRef(nodeToSrcSpan(node), [] /*token.getRsAnnotations(AnnotContext.OtherContext */, nodeToRsId(state, node));
+            }
+
+            // CallExpression
+            function callExpressionToRsExp(state: RsTranslationState, node: CallExpression): RsCallExpr {
+                return new RsCallExpr(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression),
+                    nodeArrayToRsAST(state, node.arguments, nodeToRsExp));
+            }
+
+            // Array literal
+            function arrayLiteralExpressionToRsExp(state: RsTranslationState, node: ArrayLiteralExpression): RsArrayLit {
+                return new RsArrayLit(nodeToSrcSpan(node), [], nodeArrayToRsAST(state, node.elements, nodeToRsExp));
+            }
+
+            // Element Access
+            function elementAccessExpressionToRsExp(state: RsTranslationState, node: ElementAccessExpression): RsBracketRef {
+                return new RsBracketRef(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeToRsExp(state, node.argumentExpression));
+            }
+
+            // Property Access
+            function propertyAccessExpressionToRsExp(state: RsTranslationState, node: PropertyAccessExpression): RsDotRef {
+                return new RsDotRef(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeToRsId(state, node.name));
             }
 
             // ExpressionStatement
-            function expressionStatementToRsStmt(helper: RsHelper, node: ExpressionStatement): RsStatement {
+            function expressionStatementToRsStmt(state: RsTranslationState, node: ExpressionStatement): RsStatement {
                 // The annotations will be provided by the contents
-                return new RsExprStmt(nodeToSrcSpan(node), /* nodeAnnotations(this) */[], nodeToRsExp(helper, node.expression));
+                return new RsExprStmt(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression));
             }
 
             // BinaryExpression
-            function binaryExpressionToRsExp(helper: RsHelper, node: BinaryExpression): RsExpression {
+            function binaryExpressionToRsExp(state: RsTranslationState, node: BinaryExpression): RsExpression {
 
                 // console.log("operator: " + SyntaxKind[node.operatorToken.kind]);
 
@@ -447,99 +435,97 @@ namespace ts {
                 switch (node.operatorToken.kind) {
 
                     case SyntaxKind.PlusToken:
-                        return new RsInfixExpr(nodeToSrcSpan(node), [] /* TODO: leadingNodeAnnotations(node) */,
-                            new RsInfixOp(getTextOfNode(node.operatorToken)), nodeToRsExp(helper, node.left), nodeToRsExp(helper, node.right));
+                    case SyntaxKind.GreaterThanToken:
+                    case SyntaxKind.GreaterThanEqualsToken:
+                    case SyntaxKind.LessThanToken:
+                    case SyntaxKind.LessThanEqualsToken:
+                    case SyntaxKind.PlusToken:
+                    case SyntaxKind.MinusToken:
+                        return new RsInfixExpr(nodeToSrcSpan(node), [], new RsInfixOp(getTextOfNode(node.operatorToken)),
+                            nodeToRsExp(state, node.left), nodeToRsExp(state, node.right));
 
+                    // switch (node.kind) {
+                    //     case SyntaxKind.PropertyAccessExpression: {
+                    //         switch (node.right.kind) {
+                    //             case SyntaxKind.Identifier:
+                    //                 return new RsDotRef(nodeToSrcSpan(node), leadingNodeAnnotations(node), nodeToRsExp(state, node.left), nodeToRsAST(state, <RsId>node.right));
+                    //         }
+                    //         //throw new Error("UNIMMPLEMENTED:BinaryExpression:toRsAST:MemberAccessExpression:op2-nonId");
+                    //         state.postDiagnostic(node, DiagnosticCode.Cannot_call_toRsAST_on_MemberAccessExpression);
+                    //     }
+                    //
+                    //     case SyntaxKind.AssignmentExpression:
+                    //         return new RsAssignExpr(
+                    //             state.getSourceSpan(node),
+                    //             leadingNodeAnnotations(node),
+                    //             new RsAssignOp(node.operatorToken.text()),
+                    //             node.left.toRsLValue(state),
+                    //             node.right.toRsExp(state));
+                    //
+                    //     case SyntaxKind.ElementAccessExpression:
+                    //         return new RsBracketRef(
+                    //             state.getSourceSpan(node),
+                    //             leadingNodeAnnotations(node),
+                    //             node.left.toRsExp(state),
+                    //             node.right.toRsExp(state));
+                    //
+                    //     case SyntaxKind.AddExpression:
+                    //     case SyntaxKind.SubtractExpression:
+                    //     case SyntaxKind.MultiplyExpression:
+                    //     case SyntaxKind.DivideExpression:
+                    //     case SyntaxKind.ModuloExpression:
+                    //     case SyntaxKind.EqualsExpression:
+                    //     case SyntaxKind.EqualsWithTypeConversionExpression:
+                    //     case SyntaxKind.NotEqualsWithTypeConversionExpression:
+                    //     case SyntaxKind.NotEqualsExpression:
+                    //     case SyntaxKind.LeftShiftExpression:
+                    //     case SyntaxKind.SignedRightShiftExpression:
+                    //     case SyntaxKind.UnsignedRightShiftExpression:
+                    //     case SyntaxKind.BitwiseOrExpression:
+                    //     case SyntaxKind.BitwiseExclusiveOrExpression:
+                    //     case SyntaxKind.BitwiseAndExpression:
+                    //          DONE
+                    //
+                    //     case SyntaxKind.AddAssignmentExpression:
+                    //     case SyntaxKind.SubtractAssignmentExpression:
+                    //     case SyntaxKind.DivideAssignmentExpression:
+                    //     case SyntaxKind.MultiplyAssignmentExpression:
+                    //     case SyntaxKind.LeftShiftAssignmentExpression:
+                    //     case SyntaxKind.SignedRightShiftAssignmentExpression:
+                    //     case SyntaxKind.UnsignedRightShiftAssignmentExpression:
+                    //     case SyntaxKind.AndAssignmentExpression:
+                    //     case SyntaxKind.ExclusiveOrAssignmentExpression:
+                    //     case SyntaxKind.OrAssignmentExpression:
+                    //         return new RsAssignExpr(
+                    //             state.getSourceSpan(node),
+                    //             leadingNodeAnnotations(node),
+                    //             new RsAssignOp(node.operatorToken.text()),
+                    //             node.left.toRsLValue(state),
+                    //             node.right.toRsExp(state));
+                    //
+                    //     case SyntaxKind.InstanceOfExpression:
+                    //         return new RsInfixExpr(state.getSourceSpan(node),
+                    //             leadingNodeAnnotations(node),
+                    //             new RsInfixOp("instanceof"),
+                    //             node.left.toRsExp(state),
+                    //             node.right.toRsExp(state));
+                    //
+                    //     case SyntaxKind.InExpression:
+                    //         return new RsInfixExpr(state.getSourceSpan(node),
+                    //             leadingNodeAnnotations(node),
+                    //             new RsInfixOp("in"),
+                    //             node.left.toRsExp(state),
+                    //             node.right.toRsExp(state));
+                    //
+                    default:
+                        throw new Error("[refscript] BinaryExpression toRsExp Expression for: " + SyntaxKind[node.operatorToken.kind]);
+                    //         state.postDiagnostic(node,
+                    //             DiagnosticCode.Cannot_call_toRsExp_on_BinaryExpression_with_SyntaxKind_0,
+                    //             [SyntaxKind[node.kind()]]);
                 }
-
-                // switch (node.kind) {
-                //     case SyntaxKind.PropertyAccessExpression: {
-                //         switch (node.right.kind) {
-                //             case SyntaxKind.Identifier:
-                //                 return new RsDotRef(nodeToSrcSpan(node), leadingNodeAnnotations(node), nodeToRsExp(helper, node.left), nodeToRsAST(helper, <RsId>node.right));
-                //         }
-                //         //throw new Error("UNIMMPLEMENTED:BinaryExpression:toRsAST:MemberAccessExpression:op2-nonId");
-                //         helper.postDiagnostic(node, DiagnosticCode.Cannot_call_toRsAST_on_MemberAccessExpression);
-                //     }
-                //
-                //     case SyntaxKind.AssignmentExpression:
-                //         return new RsAssignExpr(
-                //             helper.getSourceSpan(node),
-                //             leadingNodeAnnotations(node),
-                //             new RsAssignOp(node.operatorToken.text()),
-                //             node.left.toRsLValue(helper),
-                //             node.right.toRsExp(helper));
-                //
-                //     case SyntaxKind.ElementAccessExpression:
-                //         return new RsBracketRef(
-                //             helper.getSourceSpan(node),
-                //             leadingNodeAnnotations(node),
-                //             node.left.toRsExp(helper),
-                //             node.right.toRsExp(helper));
-                //
-                //     case SyntaxKind.AddExpression:
-                //     case SyntaxKind.SubtractExpression:
-                //     case SyntaxKind.MultiplyExpression:
-                //     case SyntaxKind.DivideExpression:
-                //     case SyntaxKind.ModuloExpression:
-                //     case SyntaxKind.EqualsExpression:
-                //     case SyntaxKind.EqualsWithTypeConversionExpression:
-                //     case SyntaxKind.GreaterThanExpression:
-                //     case SyntaxKind.GreaterThanOrEqualExpression:
-                //     case SyntaxKind.LessThanExpression:
-                //     case SyntaxKind.LessThanOrEqualExpression:
-                //     case SyntaxKind.LogicalOrExpression:
-                //     case SyntaxKind.LogicalAndExpression:
-                //     case SyntaxKind.NotEqualsWithTypeConversionExpression:
-                //     case SyntaxKind.NotEqualsExpression:
-                //     case SyntaxKind.LeftShiftExpression:
-                //     case SyntaxKind.SignedRightShiftExpression:
-                //     case SyntaxKind.UnsignedRightShiftExpression:
-                //     case SyntaxKind.BitwiseOrExpression:
-                //     case SyntaxKind.BitwiseExclusiveOrExpression:
-                //     case SyntaxKind.BitwiseAndExpression:
-                //          DONE
-                //
-                //     case SyntaxKind.AddAssignmentExpression:
-                //     case SyntaxKind.SubtractAssignmentExpression:
-                //     case SyntaxKind.DivideAssignmentExpression:
-                //     case SyntaxKind.MultiplyAssignmentExpression:
-                //     case SyntaxKind.LeftShiftAssignmentExpression:
-                //     case SyntaxKind.SignedRightShiftAssignmentExpression:
-                //     case SyntaxKind.UnsignedRightShiftAssignmentExpression:
-                //     case SyntaxKind.AndAssignmentExpression:
-                //     case SyntaxKind.ExclusiveOrAssignmentExpression:
-                //     case SyntaxKind.OrAssignmentExpression:
-                //         return new RsAssignExpr(
-                //             helper.getSourceSpan(node),
-                //             leadingNodeAnnotations(node),
-                //             new RsAssignOp(node.operatorToken.text()),
-                //             node.left.toRsLValue(helper),
-                //             node.right.toRsExp(helper));
-                //
-                //     case SyntaxKind.InstanceOfExpression:
-                //         return new RsInfixExpr(helper.getSourceSpan(node),
-                //             leadingNodeAnnotations(node),
-                //             new RsInfixOp("instanceof"),
-                //             node.left.toRsExp(helper),
-                //             node.right.toRsExp(helper));
-                //
-                //     case SyntaxKind.InExpression:
-                //         return new RsInfixExpr(helper.getSourceSpan(node),
-                //             leadingNodeAnnotations(node),
-                //             new RsInfixOp("in"),
-                //             node.left.toRsExp(helper),
-                //             node.right.toRsExp(helper));
-                //
-                //     default:
-                //         //throw new Error("UNIMMPLEMENTED:BinaryExpression:toRsExp:Expression for: " + SyntaxKind[node.kind()]);
-                //         helper.postDiagnostic(node,
-                //             DiagnosticCode.Cannot_call_toRsExp_on_BinaryExpression_with_SyntaxKind_0,
-                //             [SyntaxKind[node.kind()]]);
-                // }
             }
 
-            function literalExpressionToRsExp(helper: RsHelper, node: LiteralExpression): RsExpression {
+            function literalExpressionToRsExp(state: RsTranslationState, node: LiteralExpression): RsExpression {
 
                 let nodeText = getTextOfNode(node);
                 if (nodeText.indexOf(".") === -1) {
@@ -555,92 +541,93 @@ namespace ts {
                 else {
                     return new RsNumLit(nodeToSrcSpan(node), [] /*token.getRsAnnotations(AnnotContext.OtherContext)*/, parseFloat(nodeText));
                 }
-
             }
 
             // VariableStatement
-            function variableStatementToRsStmt(helper: RsHelper, node: VariableStatement): RsStatement {
-
-                let annotations = leadingNodeAnnotations(node);                
-                let binderAnnotations = <RsBindAnnotation[]>annotations.filter(a => a.kind() === AnnotKind.RawBind);
-
-                if (node.declarationList.declarations.length !== 1) {
+            function variableStatementToRsStmt(state: RsTranslationState, node: VariableStatement): RsStatement {
+                if (node.declarationList.declarations.length !== 1)
                     throw new Error("[refscript] Currently only supporting one declaration per declaration statement");
-                }
 
                 let declaration = node.declarationList.declarations[0];
-                let modifiers: ModifiersArray = (node.modifiers) ? node.modifiers : <ModifiersArray>[];
-                let anns: RsAnnotation[] = concat(modifiers.map(m => leadingNodeAnnotations(m)));
 
-                if (modifiers.some(m => m.kind === SyntaxKind.ExportKeyword)) {
-                    anns.push(new RsAnnotation(nodeToSrcSpan(node), AnnotKind.RawExported, ""));
+                let annotations: Annotation[] = nodeAnnotations(node, makeVariableDeclarationAnnotation);
+                let modifiers: ModifiersArray = (node.modifiers) ? node.modifiers : <ModifiersArray>[];
+
+                // Export (export var ... )
+                if (modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
+                    annotations = annotations.concat(new ExportedAnnotation(nodeToSrcSpan(node)));
+                }
+                // Ambient (declare var ... )
+                if ((node.flags & NodeFlags.Ambient) === NodeFlags.Ambient) {
+                    // TODO: test this check
+                    annotations = annotations.concat(new AmbientAnnotation(nodeToSrcSpan(node)));
                 }
                 // Pass over the annotations to the lower levels.
-                let varDeclList = new RsList([variableDeclarationToRsVarDecl(helper, declaration, binderAnnotations)]);
+                let varDeclList = new RsList([variableDeclarationToRsVarDecl(state, declaration, annotations)]);
 
-                return new RsVarDeclStmt(nodeToSrcSpan(node), [] /* anns */, varDeclList);
-
+                // No annotations go to the top-level VariableStatement
+                return new RsVarDeclStmt(nodeToSrcSpan(node), [], varDeclList);
             }
 
             // VariableDeclaration
-            function variableDeclarationToRsVarDecl(helper: RsHelper, node: VariableDeclaration, annotations: RsBindAnnotation[]): RsVarDecl {
-                // binderAnns: keep just the relevant binder annotations
-                if (node.name.kind === SyntaxKind.ObjectBindingPattern || node.name.kind === SyntaxKind.ArrayBindingPattern) {
-                    throw new Error("[refscript] Object and array binding patterns are not supported.")
-                }
+            function variableDeclarationToRsVarDecl(state: RsTranslationState, node: VariableDeclaration, annotations: Annotation[]): RsVarDecl {
+
+                if (node.name.kind === SyntaxKind.ObjectBindingPattern || node.name.kind === SyntaxKind.ArrayBindingPattern)
+                    throw new Error("[refscript] Object and array binding patterns are not supported.");
+
                 let idName = <Identifier>node.name;
-                let binderAnns = annotations.filter(a => a.binderName(node, helper) === idName.text);
 
-                // TODO: Test ambient declarations
-                if ((node.flags & NodeFlags.Ambient) === NodeFlags.Ambient) {
-                    // Refscript treats ambient variable declarations as normal declarations.
-                    if (binderAnns.length === 0) {
-                        let type = typeToRsType(helper.getTypeForAST(node));
-                        if (type instanceof TError) {
-                            let tError = <TError>type;
-                            helper.postDiagnostic(node, Diagnostics.Cannot_translate_type_0_into_RefScript_type, [tError.message()]);
-                        }
-                        let finalAnnotations = annotations.concat([new RsBindAnnotation(nodeToSrcSpan(node),
-                            AnnotKind.RawAmbBind, Assignability.AErrorAssignability, idName.text + " :: " + type.toString())]);
-                        return new RsVarDecl(nodeToSrcSpan(node), finalAnnotations, nodeToRsId(helper, idName), new RsNothing());
-                    }
-                    else if (binderAnns.length === 1) {
-                        binderAnns[0]["_kind"] = AnnotKind.RawAmbBind;      // yuk
-                        return new RsVarDecl(nodeToSrcSpan(node), binderAnns, nodeToRsId(helper, idName), new RsNothing());
-                    }
-                    helper.postDiagnostic(this, Diagnostics.Ambient_variable_declarator_for_0_needs_to_have_at_least_one_type_annotation, [idName.text]);
+                if (!annotations.some(a => a instanceof VariableDeclarationAnnotation)) {
+                    // No type annotation given -- Use the TypeScript one
+                    let type = checker.getTypeAtLocation(node);
+                    // if (type instanceof TError) {
+                    //     state.postDiagnostic(node, Diagnostics.Cannot_translate_type_0_into_RefScript_type, [type.message()]);
+                    // }
+                    annotations = annotations.concat(
+                        [new VariableDeclarationAnnotation(nodeToSrcSpan(node), Assignability.WriteGlobal, idName.text + " :: " + checker.typeToString(type))]);
                 }
-
-                //This is a normal declaration
-                if (binderAnns.length < 2) {
-                    //All necessary binders need to be in @anns@
-                    return new RsVarDecl(nodeToSrcSpan(node), binderAnns, nodeToRsId(helper, node.name),
-                        (node.initializer) ? new RsJust(nodeToRsExp(helper, node.initializer)) : new RsNothing());
-                }
-                helper.postDiagnostic(this, Diagnostics.Variable_declarator_for_0_needs_to_have_at_most_one_type_annotation, [this.propertyName.text()]);
+                return new RsVarDecl(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
+                    (node.initializer) ? new RsJust(nodeToRsExp(state, node.initializer)) : new RsNothing());
             }
 
+            // IfStatement
+            function ifStatementToRsStmt(state: RsTranslationState, node: IfStatement): RsStatement {
+                if (node.elseStatement) {
+                    return new RsIfStmt(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeToRsStmt(state, node.thenStatement), nodeToRsStmt(state, node.elseStatement));
+                }
+                else {
+                    return new RsIfSingleStmt(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeToRsStmt(state, node.thenStatement));
+                }
+            }
+
+            // Block statement
+            function blockToRsStmt(state: RsTranslationState, node: Block): RsBlockStmt {
+                return new RsBlockStmt(nodeToSrcSpan(node), [], nodeArrayToRsAST(state, node.statements, nodeToRsStmt));
+            }
+
+            // Return statement
+            function returnStatementToRsStmt(state: RsTranslationState, node: ReturnStatement): RsReturnStmt {
+                return new RsReturnStmt(nodeToSrcSpan(node), [], (node.expression) ? new RsJust(nodeToRsExp(state, node.expression)) : new RsNothing());
+            }
 
 
             ///////////////////////////////////////////////////////
             //  Extract Annotations
             ///////////////////////////////////////////////////////
 
-            function leadingNodeAnnotations(node: Node, context?: AnnotContext): RsAnnotation[] {
-                return nodeAnnotations(node, true, context);
-            }
+            /**
+             * [node description]
+             * @type {Node}
+             */
+            function nodeAnnotations<A extends Annotation>(node: Node, creator: (s: string, srcSpan: RsSrcSpan) => A[]): A[] {
 
-            function trailingNodeAnnotations(node: Node, context?: AnnotContext): RsAnnotation[] {
-                return nodeAnnotations(node, false, context);
-            }
-
-            function nodeAnnotations(node: Node, lead: boolean, context?: AnnotContext): RsAnnotation[] {
                 if (!node) return [];
-                let ctx = (context !== undefined) ? context : AnnotContext.OtherContext;
+
                 let currentSourceFile = getSourceFileOfNode(node);
-                let comments = getLeadingCommentRangesOfNode(node, currentSourceFile);
+                let comments = emptyFromUndefined(getLeadingCommentRangesOfNode(node, currentSourceFile));
                 let match = comments.map(extractBinderAndAnnotation);
-                return match.filter(t => t !== null).map(t => RsAnnotation.createAnnotation(t.snd(), ctx, t.fst()));
+
+                return concat(match.filter(t => t !== null).map(t => creator(t.cstring, t.ss)));
 
                 function extractBinderAndAnnotation(commentRange: CommentRange) {
                     let commentText = currentSourceFile.text.substring(commentRange.pos, commentRange.end);
@@ -651,7 +638,7 @@ namespace ts {
                         let beginLineAndChar = getLineAndCharacterOfPosition(currentSourceFile, commentRange.pos);
                         let endLineAndChar = getLineAndCharacterOfPosition(currentSourceFile, commentRange.end)
                         let ss = new RsSrcSpan(currentSourceFile.fileName, beginLineAndChar, endLineAndChar);
-                        return new Pair(ss, cstring);
+                        return { ss, cstring };
                     }
                     return null;
                 }
@@ -672,11 +659,60 @@ namespace ts {
             //  Type Translation
             ///////////////////////////////////////////////////////
 
-            function typeToRsType(type: Type): RsType {
-                // TODO
+            // function typeToRsType(type: Type): RsType {
+            //     // TODO
+            //     if (type.flags & TypeFlags.Any) {
+            //         return TAny;
+            //     }
+            //     if (type.flags & TypeFlags.String) {
+            //         return TString;
+            //     }
+            //     if (type.flags & TypeFlags.Number) {
+            //         return TNumber;
+            //     }
+            //     if (type.flags & TypeFlags.Boolean) {
+            //         return TBoolean;
+            //     }
+            //     if (type.flags & TypeFlags.Void) {
+            //         return TVoid;
+            //     }
+            //     if (type.flags & TypeFlags.Undefined) {
+            //         return TUndefined;
+            //     }
+            //     if (type.flags & TypeFlags.Null) {
+            //         return TNull;
+            //     }
+            //     if (type.flags & TypeFlags.StringLiteral) {
+            //         return new TStringLit((<StringLiteral>type).text);
+            //     }
+            //
+            //     if (type.flags & TypeFlags.Union) {
+            //         return new TOr((<UnionType>type).types.map(member => typeToRsType(member)));
+            //     }
+            //
+            //     if (type.flags & TypeFlags.Reference) {
+            //         let typeReference = <TypeReference>type;
+            //         return new TTypeReference(typeReference.target, )
+            //     }
+            //     // ...
+            // }
 
-                return undefined;
-            }
+            // function signatureToRsTFun(signature: Signature): RsTFun[] {
+            //     let signatureDeclaration = signature.declaration;
+            //     let parameters = signature.parameters;
+            //     let typeParameters: RsTypeParam[] = undefined;
+            //     let parameterRsBinds = parameters.map(parameter => {
+            //         let parameterType = checker.getTypeOfSymbolAtLocation(parameter, parameter.declarations[0]);
+            //         return new RsBind(parameter.name, typeToRsType(parameterType));
+            //     });
+            //
+            //     let parametersLength = this.parameters.length;
+            //     let nonOptionalLength = signatureDeclaration.parameters.filter(parameterDeclaration => !parameterDeclaration.questionToken).length;
+            //     let rsBindGroups = range(nonOptionalLength, parametersLength).map(i => parameterRsBinds.slice(0, i));
+            //     let returnType = typeToRsType(signature.resolvedReturnType);
+            //
+            //     return rsBindGroups.map(rsBinds => new RsTFun(typeParameters, rsBinds, returnType));
+            // }
 
         }
 

@@ -1438,6 +1438,7 @@ namespace ts {
         getShorthandAssignmentValueSymbol(location: Node): Symbol;
         getTypeAtLocation(node: Node): Type;
         typeToString(type: Type, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;
+        signatureToString(signature: Signature, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;  //RSC
         symbolToString(symbol: Symbol, enclosingDeclaration?: Node, meaning?: SymbolFlags): string;
         getSymbolDisplayBuilder(): SymbolDisplayBuilder;
         getFullyQualifiedName(symbol: Symbol): string;
@@ -1466,7 +1467,7 @@ namespace ts {
 
         /* @internal */ getNodeCount(): number;
         /* @internal */ getIdentifierCount(): number;
-        /* @internal */ getSymbolCount(): number;
+        /* @internal */ getSymbolCount(): number
         /* @internal */ getTypeCount(): number;
     }
 

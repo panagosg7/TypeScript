@@ -105,6 +105,9 @@ namespace ts {
         return -1;
     }
 
+    /**
+     * Returns the index of element v in array of T's 'array', or -1 if the element is not present.
+     */
     export function indexOfEq<T>(array: T[], v: T): number {
         for (var i = 0, n = array.length; i < n; i++) {
             if (array[i] === v) {
@@ -163,9 +166,34 @@ namespace ts {
         return result;
     }
 
+    // RSC: ported from tsc v1.0.1.0
     export function concat<T, U>(array: T[][]): T[] {
         return concatMap(array, (x: T) => x);
     }
+
+    // RSC
+    export function emptyFromUndefined<T>(array: T[]): T[] {
+        return (array) ? array : [];
+    }
+
+    // RSC: taken from underscore.js
+    // https://github.com/jashkenas/underscore/blob/master/underscore.js#L684
+    export function range(start: number, stop: number, step?: number): number [] {
+        if (stop == null) {
+            stop = start || 0;
+            start = 0;
+        }
+        step = step || 1;
+
+        let length = Math.max(Math.ceil((stop - start) / step), 0);
+        let range = Array(length);
+
+        for (var idx = 0; idx < length; idx++, start += step) {
+            range[idx] = start;
+        }
+        return range;
+    }
+
 
     export function concatenate<T>(array1: T[], array2: T[]): T[] {
         if (!array2 || !array2.length) return array1;
