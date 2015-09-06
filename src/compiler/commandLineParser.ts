@@ -114,6 +114,11 @@ namespace ts {
             name: "noLib",
             type: "boolean",
         },
+        // RSC option
+        {
+            name: "lib",
+            type: "string",
+        },
         {
             name: "noResolve",
             type: "boolean",
@@ -245,7 +250,7 @@ namespace ts {
             },
             experimental: true,
             description: Diagnostics.Specifies_module_resolution_strategy_Colon_node_Node_or_classic_TypeScript_pre_1_6
-        }        
+        }
     ];
 
     /* @internal */
@@ -469,7 +474,7 @@ namespace ts {
                     fileNames = map(<string[]>json["files"], s => combinePaths(basePath, s));
                 }
                 else {
-                    errors.push(createCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "files", "Array"));                    
+                    errors.push(createCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, "files", "Array"));
                 }
             }
             else {

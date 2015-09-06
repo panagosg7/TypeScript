@@ -738,7 +738,7 @@ module ts {
             return this._toAeson("FunctionStmt", [this.id.serialize(), this.args.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public args: RsList<RsId>, public body: RsList<RsStatement>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public args: RsList<RsId>, public body: IRsMaybe<RsList<RsStatement>>) {
             super(span, ann);
         }
     }

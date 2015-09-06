@@ -233,6 +233,7 @@ namespace ts {
         outDir: "built",
         rootDir: ".",
         sourceMap: false,
+        lib: combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), "lib.d.ts")
     };
 
     export function createCompilerHost(options: CompilerOptions, setParentNodes?: boolean): CompilerHost {
@@ -305,7 +306,14 @@ namespace ts {
 
         return {
             getSourceFile,
-            getDefaultLibFileName: options => combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), getDefaultLibFileName(options)),
+            getDefaultLibFileName: options => {
+                if (options.lib) {
+                    console.log("lib was provided: " + options.lib)
+                    console.log("dir path: " + normalizePath(sys.getCurrentDirectory()));
+                    return combinePaths(normalizePath(sys.getCurrentDirectory()), options.lib);
+                }
+                return combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), getDefaultLibFileName(options))
+            },
             writeFile,
             getCurrentDirectory: () => currentDirectory || (currentDirectory = sys.getCurrentDirectory()),
             useCaseSensitiveFileNames: () => sys.useCaseSensitiveFileNames,

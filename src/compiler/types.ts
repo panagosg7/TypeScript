@@ -2046,6 +2046,7 @@ namespace ts {
         noErrorTruncation?: boolean;
         noImplicitAny?: boolean;
         noLib?: boolean;
+        lib?: string;    // RSC provided library (instead of default)
         noResolve?: boolean;
         out?: string;
         outFile?: string;

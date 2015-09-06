@@ -24,33 +24,31 @@ module ts {
 
     export enum AnnotationKind {
         // Local
-        FunctionDeclaration,    // Function specification
-        VariableDeclaration,    // Variable specification
-        FunctionExpression,     // Anonymous function specification
-        Interface,              // Data type definition
-        Class,                  // Class specification
-        Field,                  // Field specification
-        Method,                 // Method specification
-        Constructor,            // Constructor specification
-        Cast,                   // Cast
-        Exported,               // Exported
-        Ambient,                // Ambient
+        FunctionDeclarationRawSpec,    // Function specification
+        VariableDeclarationRawSpec,    // Variable specification
+        FunctionExpressionRawSpec,     // Anonymous function specification
+        InterfaceRawSpec,              // Data type definition
+        ClassRawSpec,                  // Class specification
+        FieldRawSpec,                  // Field specification
+        MethodRawSpec,                 // Method specification
+        ConstructorRawSpec,            // Constructor specification
+        CastRawSpec,                   // Cast
 
         // Global
-        Measure,                // Measure
-        TypeAlias,              // Type alias
-        PredicateAlias,         // Predicate alias
-        Qualifier,              // Qualifier
-        Invariant,              // Invariant
-        Option                  // RT Option
+        MeasureRawSpec,                // Measure
+        TypeAliasRawSpec,              // Type alias
+        PredicateAliasRawSpec,         // Predicate alias
+        QualifierRawSpec,              // Qualifier
+        InvariantRawSpec,              // Invariant
+        OptionRawSpec                  // RT Option
     }
 
     export enum AnnotContext {
-        ClassMethod,            // Class method
-        ClassField,             // Class field
-        ClassContructor,        // Class constructor
-        FunctionDeclaration,    // Function Declaration
-        Other                   // Rest
+        ClassMethod,               // Class method
+        ClassField,                // Class field
+        ClassContructor,           // Class constructor
+        FunctionDeclaration,       // Function Declaration
+        Other                      // Rest
     }
 
     export class Annotation {
@@ -58,7 +56,6 @@ module ts {
 
         public serialize(): any {
             throw new Error("[refscript] Method 'serialize' needs to be instantiated in a subclass of RsAnnotation.");
-            // return ts.aesonEncode(AnnotationKind[this.kind], [this.sourceSpan.serialize(), this.content()]);
         }
     }
 
@@ -69,7 +66,7 @@ module ts {
         }
 
         public serialize(): any {
-            return ts.aesonEncode(AnnotationKind[this.kind], [this.sourceSpan.serialize(), this.content]);
+            return aesonEncode(AnnotationKind[this.kind], [this.sourceSpan.serialize(), this.content]);
         }
 
         public getContent(): string {
@@ -79,13 +76,13 @@ module ts {
 
     export class FunctionDeclarationAnnotation extends SingleContentAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.FunctionExpression, content);
+            super(sourceSpan, AnnotationKind.FunctionDeclarationRawSpec, content);
         }
     }
 
     export class VariableDeclarationAnnotation extends SingleContentAnnotation {
         constructor(sourceSpan: RsSrcSpan, public asgn: Assignability, content: string) {
-            super(sourceSpan, AnnotationKind.VariableDeclaration, content);
+            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, content);
         }
 
         public name: string;
@@ -119,25 +116,25 @@ module ts {
 
     export class FunctionExpressionAnnotation extends SingleContentAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.FunctionExpression, content);
+            super(sourceSpan, AnnotationKind.FunctionExpressionRawSpec, content);
         }
     }
 
     export class InterfaceAnnotation extends SingleContentAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.Interface, content);
+            super(sourceSpan, AnnotationKind.InterfaceRawSpec, content);
         }
     }
 
     export class ClassAnnotation extends SingleContentAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.Class, content);
+            super(sourceSpan, AnnotationKind.ClassRawSpec, content);
         }
     }
 
     export class FieldAnnotation extends SingleContentAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.Field, content);
+            super(sourceSpan, AnnotationKind.FieldRawSpec, content);
         }
 
         public name: string;
@@ -167,13 +164,13 @@ module ts {
 
     export class MethodAnnotation extends SingleContentAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.Method, content);
+            super(sourceSpan, AnnotationKind.MethodRawSpec, content);
         }
     }
 
     export class ConstructorAnnotation extends SingleContentAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.Constructor, content);
+            super(sourceSpan, AnnotationKind.ConstructorRawSpec, content);
         }
     }
 
@@ -215,18 +212,6 @@ module ts {
     export class ExplicitInterfaceAnnotation extends InterfaceAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, content);
-        }
-    }
-
-    export class ExportedAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan) {
-            super(sourceSpan, AnnotationKind.Exported);
-        }
-    }
-
-    export class AmbientAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan) {
-            super(sourceSpan, AnnotationKind.Ambient);
         }
     }
 
@@ -365,30 +350,30 @@ module ts {
 
             switch (s) {
                 case "measure":
-                    return AnnotationKind.Measure;
+                    return AnnotationKind.MeasureRawSpec;
                 case "qualif":
-                    return AnnotationKind.Qualifier;
+                    return AnnotationKind.QualifierRawSpec;
                 case "interface":
-                    return AnnotationKind.Interface;
+                    return AnnotationKind.InterfaceRawSpec;
                 case "alias":
-                    return AnnotationKind.TypeAlias;
+                    return AnnotationKind.TypeAliasRawSpec;
                 case "class":
-                    return AnnotationKind.Class;
+                    return AnnotationKind.ClassRawSpec;
                 case "predicate":
-                    return AnnotationKind.PredicateAlias;
+                    return AnnotationKind.PredicateAliasRawSpec;
                 case "invariant":
-                    return AnnotationKind.Invariant;
+                    return AnnotationKind.InvariantRawSpec;
                 case "cast":
-                    return AnnotationKind.Cast;
+                    return AnnotationKind.CastRawSpec;
                 case "<anonymous>":
-                    return AnnotationKind.FunctionExpression;
+                    return AnnotationKind.FunctionExpressionRawSpec;
                 case "option":
-                    return AnnotationKind.Option;
+                    return AnnotationKind.OptionRawSpec;
                 default:
                     if (ctx === AnnotContext.FunctionDeclaration)
-                        return AnnotationKind.FunctionDeclaration;
+                        return AnnotationKind.FunctionDeclarationRawSpec;
                     else
-                        return AnnotationKind.VariableDeclaration;
+                        return AnnotationKind.VariableDeclarationRawSpec;
             }
         }
     // }
