@@ -375,7 +375,8 @@ namespace ts {
                 }
             }
 
-            reportDiagnostics(diagnostics);
+            // RSC - report these later
+            // reportDiagnostics(diagnostics);
 
             // If the user doesn't want us to emit, then we're done at this point.
             if (compilerOptions.noEmit) {
@@ -406,26 +407,47 @@ namespace ts {
             // return ExitStatus.Success;
 
             // RSC - begin
-            console.log("Emitting rsc ...");
-
-            let rscOutput = program.toRsc();
-
-            reportDiagnostics(rscOutput.diagnostics);
-
-            // If the emitter didn't emit anything, then pass that value along.
-            if (rscOutput.emitSkipped) {
+            
+            if (diagnostics.length > 0) {
+                dumpRefScriptDiagnostics(diagnostics, []);
+                // the exit status should be redundant
                 return ExitStatus.DiagnosticsPresent_OutputsSkipped;
             }
 
-            // The emitter emitted something, inform the caller if that happened in the presence
-            // of diagnostics or not.
-            if (diagnostics.length > 0 || rscOutput.diagnostics.length > 0) {
-                return ExitStatus.DiagnosticsPresent_OutputsGenerated;
-            }
-
-            return ExitStatus.Success;
+            try {
+                let rscOutput = program.toRsc();
+                dumpRefScriptDiagnostics(rscOutput.diagnostics, rscOutput.jsonFiles);
+                return ExitStatus.Success;
+            } catch (e) {
+               dumpRefScriptUnknownError(e.stack);
+               throw e;
+           }
             // RSC - end
         }
+
+        // RSC - begin
+        function dumpRefScriptDiagnostics(_diagnostics: Diagnostic[], rscOutputFiles: string[]) {
+            if (_diagnostics.length > 0) {
+                let errors = _diagnostics.map(mkFixError);
+                let crashes = _diagnostics.filter(d => d.category === DiagnosticCategory.Unimplemented);
+                let fixResult: FixResult = (crashes.length > 0) ? (new FRCrash(errors, "UNIMPLEMENTED")) : (new FRUnsafe(errors));
+                sys.write(PrettyJSON.stringify(fixResult.serialize(), { maxLength: 120, indent: 2 }));
+                sys.write("\n");
+                sys.exit(1);
+            }
+            else {
+                sys.write(PrettyJSON.stringify(rscOutputFiles, { maxLength: Number.POSITIVE_INFINITY, indent: 2 }));
+                sys.write("\n");
+            }
+        }
+
+        function dumpRefScriptUnknownError(msg: string) {
+            var unknownError = new FRUnknownError(msg);
+            sys.write(PrettyJSON.stringify(unknownError.serialize(), { maxLength: Number.POSITIVE_INFINITY, indent: 2 }));
+            sys.write("\n");
+        }
+        // RSC - end
+
     }
 
     function printVersion() {

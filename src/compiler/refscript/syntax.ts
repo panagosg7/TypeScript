@@ -2,7 +2,7 @@
 
 // Object representation of the AST definition found here:
 //
-// https://github.com/UCSD-PL/RefScript/blob/master/src/Language/Nano/Syntax.hs
+// https://github.com/UCSD-PL/RefScript/blob/master/src/Language/Rsc/AST/Syntax.hs
 //
 // The serialization works with aeson-0.8.0.2
 //
@@ -10,10 +10,16 @@
 module ts {
 
     export function aesonEncode(tag: string, content: any): any {
-        return { "tag": tag, "contents": content };
+        return {
+            "tag": tag,
+            "contents": content
+        };
     }
 
-    export enum AesonCtor { WITH_CTOR, NO_CTOR }
+    export enum AesonCtor {
+        WITH_CTOR,
+        NO_CTOR
+    }
 
     export interface IRsAST {
         serialize(): any;
@@ -883,9 +889,9 @@ module ts {
         }
     }
 
-    export class RsIfaceStmt extends RsStatement implements IRsVarDeclLike {
+    export class RsInterfaceStmt extends RsStatement implements IRsVarDeclLike {
         public serialize() {
-            return this._toAeson("IfaceStmt", [this.name.serialize()], AesonCtor.WITH_CTOR);
+            return this._toAeson("InterfaceStmt", [this.name.serialize()], AesonCtor.WITH_CTOR);
         }
 
         constructor(public span: RsSrcSpan, public ann: Annotation[], public name: RsId) {

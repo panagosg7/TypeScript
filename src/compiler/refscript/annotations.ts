@@ -32,6 +32,7 @@ module ts {
         FieldRawSpec,                  // Field specification
         MethodRawSpec,                 // Method specification
         ConstructorRawSpec,            // Constructor specification
+        CallRawSpec,                   // Call specification
         CastRawSpec,                   // Cast
 
         // Global
@@ -40,7 +41,11 @@ module ts {
         PredicateAliasRawSpec,         // Predicate alias
         QualifierRawSpec,              // Qualifier
         InvariantRawSpec,              // Invariant
-        OptionRawSpec                  // RT Option
+        OptionRawSpec,                 // RT Option
+
+        // not imported to RSC
+        TypeSignatureRawSpec           // Type signature
+
     }
 
     export enum AnnotContext {
@@ -52,18 +57,7 @@ module ts {
     }
 
     export class Annotation {
-        constructor(public sourceSpan: RsSrcSpan, public kind: AnnotationKind) { }
-
-        public serialize(): any {
-            throw new Error("[refscript] Method 'serialize' needs to be instantiated in a subclass of RsAnnotation.");
-        }
-    }
-
-
-    export class SingleContentAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan, kind: AnnotationKind, private content: string) {
-            super(sourceSpan, kind);
-        }
+        constructor(public sourceSpan: RsSrcSpan, public kind: AnnotationKind, public content: string) { }
 
         public serialize(): any {
             return aesonEncode(AnnotationKind[this.kind], [this.sourceSpan.serialize(), this.content]);
@@ -74,13 +68,31 @@ module ts {
         }
     }
 
-    export class FunctionDeclarationAnnotation extends SingleContentAnnotation {
+    export class FunctionDeclarationAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.FunctionDeclarationRawSpec, content);
         }
     }
 
-    export class VariableDeclarationAnnotation extends SingleContentAnnotation {
+    export class TypeSignatureAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.InterfaceRawSpec, content);
+        }
+    }
+
+    export class InterfaceDeclarationAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.InterfaceRawSpec, content);
+        }
+    }
+
+    export class TypeAliasAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.TypeAliasRawSpec, content);
+        }
+    }
+
+    export class VariableDeclarationAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, public asgn: Assignability, content: string) {
             super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, content);
         }
@@ -114,25 +126,25 @@ module ts {
         }
     }
 
-    export class FunctionExpressionAnnotation extends SingleContentAnnotation {
+    export class FunctionExpressionAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.FunctionExpressionRawSpec, content);
         }
     }
 
-    export class InterfaceAnnotation extends SingleContentAnnotation {
+    export class InterfaceAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.InterfaceRawSpec, content);
         }
     }
 
-    export class ClassAnnotation extends SingleContentAnnotation {
+    export class ClassAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.ClassRawSpec, content);
         }
     }
 
-    export class FieldAnnotation extends SingleContentAnnotation {
+    export class FieldAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.FieldRawSpec, content);
         }
@@ -162,13 +174,24 @@ module ts {
         }
     }
 
-    export class MethodAnnotation extends SingleContentAnnotation {
+    export class MethodAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.MethodRawSpec, content);
         }
     }
+    export class CallAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.CallRawSpec, content);
+        }
+    }
 
-    export class ConstructorAnnotation extends SingleContentAnnotation {
+    export class PropertyAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.FieldRawSpec, content);
+        }
+    }
+
+    export class ConstructorAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.ConstructorRawSpec, content);
         }
@@ -220,7 +243,7 @@ module ts {
 
     export class GlobalAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, kind: AnnotationKind, public content: string) {
-            super(sourceSpan, kind);
+            super(sourceSpan, kind, content);
         }
     }
 
@@ -234,23 +257,18 @@ module ts {
         if (!tokens || tokens.length <= 0)
             throw new Error("RsAnnotation could not parse string tag: " + s);
 
-        // try to read some assignability first, using 'Global' as default
-        let asgn = stringToAssignability(tokens[0]);
-        let content = tokens.slice(1).join(" ");
+        if (isReservedAnnotationPrefix(tokens[0]))
+            return [];
 
-        return [new VariableDeclarationAnnotation(srcSpan, asgn, content)];
-
-        function stringToAssignability(str: string) {
-            switch (str) {
-                case "readonly":
-                    return Assignability.ReadOnly;
-                case "local":
-                    return Assignability.WriteLocal;
-                case "global":
-                    return Assignability.WriteGlobal;
-                default:
-                    return Assignability.WriteGlobal;
-            }
+        switch (tokens[0]) {
+            case "[readonly]":
+                return [new VariableDeclarationAnnotation(srcSpan, Assignability.ReadOnly, tokens.slice(1).join(" "))];
+            case "[local]":
+                return [new VariableDeclarationAnnotation(srcSpan, Assignability.WriteLocal, tokens.slice(1).join(" "))];
+            case "[global]":
+                return [new VariableDeclarationAnnotation(srcSpan, Assignability.WriteGlobal, tokens.slice(1).join(" "))];
+            default:
+                return [new VariableDeclarationAnnotation(srcSpan, Assignability.WriteGlobal, tokens.join(" "))];
         }
     }
 
@@ -262,120 +280,93 @@ module ts {
         return [new FunctionDeclarationAnnotation(srcSpan, s)];
     }
 
-    //
-    // export function createAnnotation(s: string, ctx: AnnotContext, ss: RsSrcSpan): Annotation {
-    //
-    //     var triplet = stringTag(s);
-    //
-    //     switch (triplet.fst()) {
-    //
-    //         case AnnotationKind.RawBind: {
-    //             switch (ctx) {
-    //                 case AnnotContext.ClassMethod:
-    //                     return new VariableDeclarationAnnotation(ss, AnnotationKind.Method, triplet.snd(), triplet.thd());
-    //                 case AnnotContext.ClassFieldContext:
-    //                     return new VariableDeclarationAnnotation(ss, AnnotationKind.Field, triplet.snd(), triplet.thd());
-    //                 case AnnotContext.ClassContructor:
-    //                     return new VariableDeclarationAnnotation(ss, AnnotationKind.Constructor, triplet.snd(), triplet.thd());
-    //                 case AnnotContext.OtherContext:
-    //                     return new VariableDeclarationAnnotation(ss, triplet.fst(), triplet.snd(), triplet.thd());
-    //                 default:
-    //                     throw new Error("BUG: there is no default context");
-    //             }
-    //         }
-    //         case AnnotationKind.Class:
-    //             return new RsExplicitClassAnnotation(ss, triplet.thd());
-    //         case AnnotationKind.Interface:
-    //             return new RsExplicitInterfaceAnnotation(ss, triplet.thd());
-    //         default:
-    //             return new RsGlobalAnnotation(ss, triplet.fst(), triplet.thd());
-    //     }
-    //
-    //     type TagInfo = { bind: AnnotationKind; asgn: Assignability, content: string };
-    //
-    //     /**
-    //      * stringTag
-    //      * @param  {string}  s annotation string
-    //      * @return {TagInfo}   information concering the specific annotation string
-    //      */
-    //     function stringTag(s: string): TagInfo {
-    //
-    //         let tokens = stringTokens(s);
-    //
-    //         if (!tokens || tokens.length <= 0)
-    //             throw new Error("RsAnnotation could not parse string tag: " + s);
-    //
-    //
-    //         // bind without an assignability modifier or something else ...
-    //         var kind = toSpecKind(tokens[0]);
-    //         if (kind === AnnotationKind.RawBind) {
-    //
-    //             // if it's a bind and there is no assignability specified, assume "global" ...
-    //             return {
-    //                 bind: AnnotationKind.RawBind,
-    //                 asgn: Assignability.Error,
-    //                 content: tokens.join(" ")
-    //             };
-    //         }
-    //         else if (kind === AnnotationKind.AmbientBinder) {
-    //
-    //             return {
-    //                 bind: AnnotationKind.AmbientBinder,
-    //                 asgn: Assignability.Error,
-    //                 content: tokens.join(" ")
-    //             };
-    //
-    //         }
-    //         else {
-    //
-    //             return {
-    //                 bind: Annotation.toSpecKind(tokens[0]),
-    //                 asgn: Assignability.Error,
-    //                 content: tokens.slice(1).join(" ")
-    //             };
-    //
-    //         }
-    //
-    //     }
+    export function makeConstructorAnnotations(s: string, srcSpan: RsSrcSpan): ConstructorAnnotation[] {
+        let tokens = stringTokens(s);
+        if (!tokens || tokens[0] !== "new")
+            throw new Error("[refscript] Invalid constructor annotation: " + s);
+        return [new ConstructorAnnotation(srcSpan, s)];
+    }
 
-        /**
-         * toSpecKind
-         * @param  {string}         s the fist token appearing in a annotation string
-         * @return {AnnotationKind}   the corresponding kind of the annotation
-         */
-        function toSpecKind(s: string): AnnotationKind {
+    export function makeMethodAnnotations(s: string, srcSpan: RsSrcSpan): MethodAnnotation[] {
+        let tokens = stringTokens(s);
+        if (isReservedAnnotationPrefix(tokens[0]))
+            throw new Error("[refscript] Invalid method annotation: " + s);
+        return [new MethodAnnotation(srcSpan, s)];
+    }
 
-            // TODO
-            let ctx: AnnotContext = undefined;
+    export function makePropertyAnnotations(s: string, srcSpan: RsSrcSpan): MethodAnnotation[] {
+        let tokens = stringTokens(s);
+        if (isReservedAnnotationPrefix(tokens[0]))
+            throw new Error("[refscript] Invalid property annotation: " + s);
+        return [new PropertyAnnotation(srcSpan, s)];
+    }
 
-            switch (s) {
-                case "measure":
-                    return AnnotationKind.MeasureRawSpec;
-                case "qualif":
-                    return AnnotationKind.QualifierRawSpec;
-                case "interface":
-                    return AnnotationKind.InterfaceRawSpec;
-                case "alias":
-                    return AnnotationKind.TypeAliasRawSpec;
-                case "class":
-                    return AnnotationKind.ClassRawSpec;
-                case "predicate":
-                    return AnnotationKind.PredicateAliasRawSpec;
-                case "invariant":
-                    return AnnotationKind.InvariantRawSpec;
-                case "cast":
-                    return AnnotationKind.CastRawSpec;
-                case "<anonymous>":
-                    return AnnotationKind.FunctionExpressionRawSpec;
-                case "option":
-                    return AnnotationKind.OptionRawSpec;
-                default:
-                    if (ctx === AnnotContext.FunctionDeclaration)
-                        return AnnotationKind.FunctionDeclarationRawSpec;
-                    else
-                        return AnnotationKind.VariableDeclarationRawSpec;
-            }
+    export function makeCallAnnotations(s: string, srcSpan: RsSrcSpan): CallAnnotation[] {
+        let tokens = stringTokens(s);
+        if (isReservedAnnotationPrefix(tokens[0]))
+            throw new Error("[refscript] Invalid call annotation: " + s);
+        return [new CallAnnotation(srcSpan, s)];
+    }
+
+    export function makeTypeSignatureAnnotation(s: string, srcSpan: RsSrcSpan): TypeSignatureAnnotation[] {
+        let tokens = stringTokens(s);
+        if (!tokens || tokens.length < 2 || tokens[0] !== "interface")
+            return [];
+        return [new TypeSignatureAnnotation(srcSpan, s)];
+    }
+
+    export function makeInterfaceDeclarationAnnotation(s: string, srcSpan: RsSrcSpan): InterfaceDeclarationAnnotation[] {
+        let tokens = stringTokens(s);
+        if (!tokens || tokens.length < 2 || tokens[0] !== "interface")
+            throw new Error("[refscript] Invalid interface annotation: " + s);
+        return [new InterfaceDeclarationAnnotation(srcSpan, s)];
+    }
+
+    export function makeTypeAliasAnnotation(s: string, srcSpan: RsSrcSpan): TypeAliasAnnotation[] {
+        let tokens = stringTokens(s);
+        if (!tokens || tokens.length < 2 || tokens[0] !== "type")
+            return [];
+        return [new TypeAliasAnnotation(srcSpan, s)];
+    }
+
+    /**
+     * toSpecKind
+     * @param  {string}         s the fist token appearing in a annotation string
+     * @return {AnnotationKind}   the corresponding kind of the annotation
+     */
+    function toSpecKind(s: string): AnnotationKind {
+
+        // TODO
+        let ctx: AnnotContext = undefined;
+
+        switch (s) {
+            case "measure":
+                return AnnotationKind.MeasureRawSpec;
+            case "qualif":
+                return AnnotationKind.QualifierRawSpec;
+            case "interface":
+                return AnnotationKind.InterfaceRawSpec;
+            case "alias":
+                return AnnotationKind.TypeAliasRawSpec;
+            case "class":
+                return AnnotationKind.ClassRawSpec;
+            case "predicate":
+                return AnnotationKind.PredicateAliasRawSpec;
+            case "invariant":
+                return AnnotationKind.InvariantRawSpec;
+            case "cast":
+                return AnnotationKind.CastRawSpec;
+            case "<anonymous>":
+                return AnnotationKind.FunctionExpressionRawSpec;
+            case "option":
+                return AnnotationKind.OptionRawSpec;
+            default:
+                if (ctx === AnnotContext.FunctionDeclaration)
+                    return AnnotationKind.FunctionDeclarationRawSpec;
+                else
+                    return AnnotationKind.VariableDeclarationRawSpec;
         }
+    }
     // }
 
     function isReservedAnnotationPrefix(s: string) {

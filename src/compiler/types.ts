@@ -1413,6 +1413,7 @@ namespace ts {
         emitSkipped: boolean;
         diagnostics: Diagnostic[];
         /* @internal */ sourceMaps: SourceMapData[];  // Array of sourceMapData if compiler emitted sourcemaps
+        jsonFiles?: string[];   // RSC
     }
 
     /* @internal */
@@ -1438,7 +1439,9 @@ namespace ts {
         getShorthandAssignmentValueSymbol(location: Node): Symbol;
         getTypeAtLocation(node: Node): Type;
         typeToString(type: Type, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;
-        signatureToString(signature: Signature, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;  //RSC
+        typeToRscString(type: Type, enclosingDeclaration: Node): string;    // RSC
+        signatureToString(signature: Signature, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;
+        signatureToRscString(signature: Signature, enclosingDeclaration: Node): string;  //RSC    
         symbolToString(symbol: Symbol, enclosingDeclaration?: Node, meaning?: SymbolFlags): string;
         getSymbolDisplayBuilder(): SymbolDisplayBuilder;
         getFullyQualifiedName(symbol: Symbol): string;

@@ -75,7 +75,9 @@ namespace ts {
             getShorthandAssignmentValueSymbol,
             getTypeAtLocation: getTypeOfNode,
             typeToString,
+            typeToRscString,
             signatureToString,
+            signatureToRscString,
             getSymbolDisplayBuilder,
             symbolToString,
             getAugmentedPropertiesOfType,
@@ -1459,6 +1461,11 @@ namespace ts {
             return result;
         }
 
+        // RSC
+        function signatureToRscString(signature: Signature, enclosingDeclaration: Node): string {
+            return signatureToString(signature, enclosingDeclaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType);
+        }
+
         function typeToString(type: Type, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string {
             let writer = getSingleLineStringWriter();
             getSymbolDisplayBuilder().buildTypeDisplay(type, writer, enclosingDeclaration, flags);
@@ -1470,6 +1477,11 @@ namespace ts {
                 result = result.substr(0, maxLength - "...".length) + "...";
             }
             return result;
+        }
+
+        // RSC
+        function typeToRscString(type: Type, enclosingDeclaration: Node): string {
+            return typeToString(type, enclosingDeclaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType);
         }
 
         function getTypeAliasForTypeLiteral(type: Type): Symbol {
@@ -14541,7 +14553,7 @@ namespace ts {
             getSymbolLinks(unknownSymbol).type = unknownType;
             globals[undefinedSymbol.name] = undefinedSymbol;
             // Initialize special types
-            globalArrayType = <GenericType>getGlobalType("Array", /*arity*/ 1);
+            globalArrayType = <GenericType>getGlobalType("Array", /*arity*/ 2);     // RSC: changing arity: 1 --> 2
             globalObjectType = getGlobalType("Object");
             globalFunctionType = getGlobalType("Function");
             globalStringType = getGlobalType("String");

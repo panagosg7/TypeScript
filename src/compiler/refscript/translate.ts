@@ -2,6 +2,7 @@
 /// <reference path="./initializationStatistics.ts"/>
 /// <reference path="./syntax.ts"/>
 /// <reference path="./annotations.ts"/>
+/// <reference path="./types.ts"/>
 /// <reference path="../../../ext/json-stringify-pretty-compact/index.ts"/>
 
 namespace ts {
@@ -91,23 +92,22 @@ namespace ts {
     export class FPError {
         constructor(private errMsg: string, private errLoc: FPSrcSpan) { }
 
-        static mkFixError(diagnostic: Diagnostic): FPError {
-            let text1 = diagnostic.messageText;
-            let msg = typeof text1 === "string" ? text1 : text1.messageText;
-            let file = diagnostic.file;
-            let fileName = file.fileName;
-            let start = getLineAndCharacterOfPosition(file, diagnostic.start);
-            let stop = getLineAndCharacterOfPosition(file, diagnostic.start + dispatchEvent.length);
-            return new FPError(msg, new FPSrcSpan(new FPSrcPos(fileName, start.line, start.character), new FPSrcPos(fileName, stop.line, stop.character)));
-        }
-
         public serialize() {
             return {
                 "errMsg": this.errMsg,
                 "errLoc": this.errLoc.serialize()
             };
         }
+    }
 
+    export function mkFixError(diagnostic: Diagnostic): FPError {
+        let text1 = diagnostic.messageText;
+        let msg = typeof text1 === "string" ? text1 : text1.messageText;
+        let file = diagnostic.file;
+        let fileName = file.fileName;
+        let start = getLineAndCharacterOfPosition(file, diagnostic.start);
+        let stop = getLineAndCharacterOfPosition(file, diagnostic.start + dispatchEvent.length);
+        return new FPError(msg, new FPSrcSpan(new FPSrcPos(fileName, start.line, start.character), new FPSrcPos(fileName, stop.line, stop.character)));
     }
 
     export class FRCrash extends FixResult {
@@ -168,18 +168,21 @@ namespace ts {
     }
 
     export function emitRscJSON(resolver: EmitResolver, host: EmitHost, targetSourceFile: SourceFile, checker: TypeChecker): EmitResult {
-
         let compilerOptions = host.getCompilerOptions();
         let languageVersion = compilerOptions.target || ScriptTarget.ES3;
         let sourceMapDataList: SourceMapData[] = compilerOptions.sourceMap || compilerOptions.inlineSourceMap ? [] : undefined;
         let diagnostics: Diagnostic[] = [];
         let newLine = host.getNewLine();
 
+        let jsonFiles: string[] = [];
+
+        // In RSC only the first case should ever be called.
         if (targetSourceFile === undefined) {
-            forEach(host.getSourceFiles(), sourceFile => {
+            jsonFiles = map(host.getSourceFiles(), sourceFile => {
                 if (shouldEmitToOwnFile(sourceFile, compilerOptions)) {
-                    let jsonFilePath = getOwnEmitOutputFilePath(sourceFile, host, ".json");
+                    let jsonFilePath = getNormalizedAbsolutePath(getOwnEmitOutputFilePath(sourceFile, host, ".json"), host.getCurrentDirectory());
                     emitFile(jsonFilePath, sourceFile);
+                    return jsonFilePath;
                 }
             });
 
@@ -204,7 +207,8 @@ namespace ts {
         return {
             emitSkipped: false,
             diagnostics,
-            sourceMaps: sourceMapDataList
+            sourceMaps: sourceMapDataList,
+            jsonFiles
         };
 
         function emitFile(rscFilePath: string, sourceFile?: SourceFile) {
@@ -318,6 +322,10 @@ namespace ts {
                         return blockToRsStmt(state, <Block>node);
                     case SyntaxKind.ReturnStatement:
                         return returnStatementToRsStmt(state, <ReturnStatement>node);
+                    case SyntaxKind.InterfaceDeclaration:
+                        return interfaceDeclarationToRsStmt(state, <InterfaceDeclaration>node);
+                    case SyntaxKind.TypeAliasDeclaration:
+                        return typeAliasDeclarationToRsStmt(state, <TypeAliasDeclaration>node);
                 }
 
                 throw new Error("UNIMPLEMENTED nodeToRsStmt for " + SyntaxKind[node.kind]);
@@ -370,19 +378,17 @@ namespace ts {
 
                 let type = checker.getTypeAtLocation(node);
                 let signatures = checker.getSignaturesOfType(type, SignatureKind.Call);
-                // console.log("TYPE: " + checker.typeToString(type));
 
                 let functionDeclarationAnnotations = concat(signatures.map(signature => {
-                    // console.log("SIG: " + checker.signatureToString(signature))
+                    // console.log("SIG: " + checker.signatureToRscString(signature))
                     let signatureDeclaration = signature.declaration;
                     let sourceSpan = nodeToSrcSpan(signatureDeclaration);
                     // these are binder annotations
                     let binderAnnotations = nodeAnnotations(signatureDeclaration, makeFunctionDeclarationAnnotation);
                     if (binderAnnotations.length === 0) {
-                        // console.log("    No binders found -- will produce new type: " + checker.signatureToString(signature, signatureDeclaration, TypeFormatFlags.NoTruncation));
                         // No signature annotation on this declaration -> use the one TS infers
                         // return signatureToRsTFun(signature).map(functionType => new FunctionDeclarationAnnotation(sourceSpan, functionType.toString()));
-                        return [new FunctionDeclarationAnnotation(sourceSpan, nameText + " :: " + checker.signatureToString(signature, signatureDeclaration, TypeFormatFlags.NoTruncation))];
+                        return [new FunctionDeclarationAnnotation(sourceSpan, nameText + " :: " + checker.signatureToRscString(signature, signatureDeclaration))];
                     }
                     else {
                         // console.log("    Binder found: " + binderAnnotations[0].getContent());
@@ -510,7 +516,7 @@ namespace ts {
                     //     state.postDiagnostic(node, Diagnostics.Cannot_translate_type_0_into_RefScript_type, [type.message()]);
                     // }
                     annotations = annotations.concat(
-                        [new VariableDeclarationAnnotation(nodeToSrcSpan(node), Assignability.WriteGlobal, idName.text + " :: " + checker.typeToString(type))]);
+                        [new VariableDeclarationAnnotation(nodeToSrcSpan(node), Assignability.WriteGlobal, idName.text + " :: " + checker.typeToRscString(type, node))]);
                 }
                 return new RsVarDecl(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
                     (node.initializer) ? new RsJust(nodeToRsExp(state, node.initializer)) : new RsNothing());
@@ -534,6 +540,96 @@ namespace ts {
             // Return statement
             function returnStatementToRsStmt(state: RsTranslationState, node: ReturnStatement): RsReturnStmt {
                 return new RsReturnStmt(nodeToSrcSpan(node), [], (node.expression) ? new RsJust(nodeToRsExp(state, node.expression)) : new RsNothing());
+            }
+
+            // Interface statement
+            function interfaceDeclarationToRsStmt(state: RsTranslationState, node: InterfaceDeclaration): RsInterfaceStmt {
+
+                // TODO: Exported annotation?
+
+                let typeSignatureText = "";
+                let headerAnnotations = nodeAnnotations(node, makeTypeSignatureAnnotation);
+                if (headerAnnotations && headerAnnotations.length > 0) {
+                    typeSignatureText += headerAnnotations[0].content;
+                }
+                else {
+
+                    let interfaceHeaderText = "interface ";
+                    interfaceHeaderText += getTextOfNode(node.name);
+                    if (node.typeParameters) {
+                        interfaceHeaderText += angles(node.typeParameters.map(typeParameter => getTextOfNode(typeParameter)).join(", "));
+                    }
+                    if (node.heritageClauses) {
+                        interfaceHeaderText += " " + node.heritageClauses.map(heritageClause => getTextOfNode(heritageClause)).join(", ");
+                    }
+                    typeSignatureText += interfaceHeaderText;
+                }
+
+                let bodyText = " { ";
+                if (node.members) {
+                    bodyText += concat(node.members.map(member => {
+                        switch (member.kind) {
+                            case SyntaxKind.ConstructSignature:
+                                let constructorAnnotations = nodeAnnotations(<ConstructorDeclaration>member, makeConstructorAnnotations);
+                                if (constructorAnnotations.length > 0) {
+                                    return [constructorAnnotations[0].getContent()];
+                                }
+                                else {
+                                    let constructorSignature = checker.getSignatureFromDeclaration(<ConstructorDeclaration>member);
+                                    return ["new " + checker.signatureToRscString(constructorSignature, member)];
+                                }
+                            case SyntaxKind.MethodSignature:
+                                let methodAnnotations = nodeAnnotations(<MethodDeclaration>member, makeMethodAnnotations);
+                                if (methodAnnotations.length > 0) {
+                                    return [methodAnnotations[0].getContent()];
+                                }
+                                else {
+                                    let methodSignature = checker.getSignatureFromDeclaration(<MethodDeclaration>member);
+                                    return [getTextOfNode(member.name) + checker.signatureToRscString(methodSignature, member)];
+                                }
+                            case SyntaxKind.PropertySignature:
+                                let propertyAnnotations = nodeAnnotations(<PropertyDeclaration>member, makePropertyAnnotations);
+                                if (propertyAnnotations.length > 0) {
+                                    return [propertyAnnotations[0].getContent()];
+                                }
+                                else {
+                                    let propertyType = checker.getTypeAtLocation(member);
+                                    let optionText = ((<PropertyDeclaration>member).questionToken) ? "?" : "";
+                                    return [getTextOfNode(member.name) +  ": " + checker.typeToRscString(propertyType, member)];
+                                }
+                            case SyntaxKind.CallSignature:
+                                let callAnnotations = nodeAnnotations(<FunctionDeclaration>member, makeCallAnnotations);
+                                if (callAnnotations.length > 0) {
+                                    return [callAnnotations[0].getContent()];
+                                }
+                                else {
+                                    let callSignature = checker.getSignatureFromDeclaration(<FunctionDeclaration>member);
+                                    return [checker.signatureToRscString(callSignature, member)];
+                                }
+                            case SyntaxKind.IndexSignature:
+
+
+                            default:
+                                // console.log(SyntaxKind[member.kind]);
+                                return [];
+                        }
+                    })).join(";\n")
+                }
+                bodyText += " }";
+                let interfaceAnnotations = makeInterfaceDeclarationAnnotation(typeSignatureText + bodyText, nodeToSrcSpan(node));
+                return new RsInterfaceStmt(nodeToSrcSpan(node), interfaceAnnotations, nodeToRsId(state, node.name));
+            }
+
+            function typeAliasDeclarationToRsStmt(state: RsTranslationState, node: TypeAliasDeclaration): RsEmptyStmt {
+                let annotations = nodeAnnotations(node, makeTypeAliasAnnotation);
+                if (!annotations || annotations.length < 1) {
+                    // Define the alias Annotations
+                    let annotationText = getTextOfNode(node.name);
+                    annotationText += " = ";
+                    annotationText += checker.typeToRscString(checker.getTypeAtLocation(node.type), node);
+                    annotations = annotations.concat(makeTypeAliasAnnotation(annotationText, nodeToSrcSpan(node)));
+                }
+                return new RsEmptyStmt(nodeToSrcSpan(node), annotations);
             }
 
 
@@ -579,66 +675,6 @@ namespace ts {
                 var regexp = new RegExp('[0-9]+');
                 return regexp.test(s);
             }
-
-
-            ///////////////////////////////////////////////////////
-            //  Type Translation
-            ///////////////////////////////////////////////////////
-
-            // function typeToRsType(type: Type): RsType {
-            //     // TODO
-            //     if (type.flags & TypeFlags.Any) {
-            //         return TAny;
-            //     }
-            //     if (type.flags & TypeFlags.String) {
-            //         return TString;
-            //     }
-            //     if (type.flags & TypeFlags.Number) {
-            //         return TNumber;
-            //     }
-            //     if (type.flags & TypeFlags.Boolean) {
-            //         return TBoolean;
-            //     }
-            //     if (type.flags & TypeFlags.Void) {
-            //         return TVoid;
-            //     }
-            //     if (type.flags & TypeFlags.Undefined) {
-            //         return TUndefined;
-            //     }
-            //     if (type.flags & TypeFlags.Null) {
-            //         return TNull;
-            //     }
-            //     if (type.flags & TypeFlags.StringLiteral) {
-            //         return new TStringLit((<StringLiteral>type).text);
-            //     }
-            //
-            //     if (type.flags & TypeFlags.Union) {
-            //         return new TOr((<UnionType>type).types.map(member => typeToRsType(member)));
-            //     }
-            //
-            //     if (type.flags & TypeFlags.Reference) {
-            //         let typeReference = <TypeReference>type;
-            //         return new TTypeReference(typeReference.target, )
-            //     }
-            //     // ...
-            // }
-
-            // function signatureToRsTFun(signature: Signature): RsTFun[] {
-            //     let signatureDeclaration = signature.declaration;
-            //     let parameters = signature.parameters;
-            //     let typeParameters: RsTypeParam[] = undefined;
-            //     let parameterRsBinds = parameters.map(parameter => {
-            //         let parameterType = checker.getTypeOfSymbolAtLocation(parameter, parameter.declarations[0]);
-            //         return new RsBind(parameter.name, typeToRsType(parameterType));
-            //     });
-            //
-            //     let parametersLength = this.parameters.length;
-            //     let nonOptionalLength = signatureDeclaration.parameters.filter(parameterDeclaration => !parameterDeclaration.questionToken).length;
-            //     let rsBindGroups = range(nonOptionalLength, parametersLength).map(i => parameterRsBinds.slice(0, i));
-            //     let returnType = typeToRsType(signature.resolvedReturnType);
-            //
-            //     return rsBindGroups.map(rsBinds => new RsTFun(typeParameters, rsBinds, returnType));
-            // }
 
         }
 

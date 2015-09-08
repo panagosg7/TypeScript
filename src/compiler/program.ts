@@ -308,8 +308,8 @@ namespace ts {
             getSourceFile,
             getDefaultLibFileName: options => {
                 if (options.lib) {
-                    console.log("lib was provided: " + options.lib)
-                    console.log("dir path: " + normalizePath(sys.getCurrentDirectory()));
+                    // console.log("lib was provided: " + options.lib)
+                    // console.log("dir path: " + normalizePath(sys.getCurrentDirectory()));
                     return combinePaths(normalizePath(sys.getCurrentDirectory()), options.lib);
                 }
                 return combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), getDefaultLibFileName(options))
@@ -559,7 +559,7 @@ namespace ts {
 
         // RSC - begin
         function toRsc(sourceFile?: SourceFile, writeFileCallback?: WriteFileCallback, cancellationToken?: CancellationToken): EmitResult {
-            // PV: this here is intened to be of type Program - This is the ugly part of avoid classes whatsoever
+            // PV: this here is intened to be of type Program - This is the ugly part of avoiding classes
             let program = <Program>this;
             return runWithCancellationToken(() => toRscWorker(program, sourceFile, writeFileCallback, cancellationToken));
         }
@@ -619,7 +619,7 @@ namespace ts {
             let checker = program.getTypeChecker();
 
             let emitResult = emitRscJSON(emitResolver, getEmitHost(writeFileCallback), sourceFile, checker);
-
+            
             emitTime += new Date().getTime() - start;
             return emitResult;
         }

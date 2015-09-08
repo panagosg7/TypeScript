@@ -357,7 +357,9 @@ module ts {
     }
 
 
-    function angles(s: string) {
+    // Auxiliary
+
+    export function angles(s: string) {
         return "<" + s + ">";
     }
 
