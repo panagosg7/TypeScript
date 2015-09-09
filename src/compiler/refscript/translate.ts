@@ -106,7 +106,7 @@ namespace ts {
         let file = diagnostic.file;
         let fileName = file.fileName;
         let start = getLineAndCharacterOfPosition(file, diagnostic.start);
-        let stop = getLineAndCharacterOfPosition(file, diagnostic.start + dispatchEvent.length);
+        let stop = getLineAndCharacterOfPosition(file, diagnostic.start + diagnostic.length);
         return new FPError(msg, new FPSrcSpan(new FPSrcPos(fileName, start.line, start.character), new FPSrcPos(fileName, stop.line, stop.character)));
     }
 
@@ -142,24 +142,15 @@ namespace ts {
         }
 
         public serialize() {
-            return { "UnknownError": this.msg };
+            return aesonEncode("UnknownError", this.msg);
         }
     }
 
-    // FIXRESULT
-    //
-    // [{"Safe":[]},
-    //  {"Crash":[[],"stack"]},
-    //  {"Unsafe":[{"errMsg":"AAA",
-    //              "errLoc":
-    //                { "sp_start":{"line":1,"column":1},
-    //                  "sp_stop" :{"line":1,"column":1}
-    //                }
-    //             },
-    //             {"errMsg":"BBB","errLoc":{"sp_start":{"line":1,"column":1},"sp_stop":{"line":1,"column":1}}}]},
-    //  {"UnknownError":"Unkowntext"}]
-
-
+    /**
+     * Get the refscript source span of a node.
+     * @param  Node         node    an AST node
+     * @return RsSourceSpan         the wanted source span
+     */
     function nodeToSrcSpan(node: Node) {
         let file = getSourceFileOfNode(node);
         let start = getLineAndCharacterOfPosition(file, node.pos);
@@ -302,6 +293,8 @@ namespace ts {
                         return propertyAccessExpressionToRsExp(state, <PropertyAccessExpression>node);
                     case SyntaxKind.StringLiteral:
                         return stringLiteralToRsExp(state, <StringLiteral>node);
+                    case SyntaxKind.NewExpression:
+                        return newExpressionToRsExp(state, <NewExpression>node);
                 }
 
                 throw new Error("UNIMPLEMENTED nodeToRsExp for " + SyntaxKind[node.kind]);
@@ -326,9 +319,11 @@ namespace ts {
                         return interfaceDeclarationToRsStmt(state, <InterfaceDeclaration>node);
                     case SyntaxKind.TypeAliasDeclaration:
                         return typeAliasDeclarationToRsStmt(state, <TypeAliasDeclaration>node);
+                    case SyntaxKind.ThrowStatement:
+                        return throwStatementToRsStmt(state, <ThrowStatement>node);
                 }
 
-                throw new Error("UNIMPLEMENTED nodeToRsStmt for " + SyntaxKind[node.kind]);
+                throw new Error("[refscript] Unimplemented nodeToRsStmt for " + SyntaxKind[node.kind]);
                 return undefined;
             }
 
@@ -391,7 +386,6 @@ namespace ts {
                         return [new FunctionDeclarationAnnotation(sourceSpan, nameText + " :: " + checker.signatureToRscString(signature, signatureDeclaration))];
                     }
                     else {
-                        // console.log("    Binder found: " + binderAnnotations[0].getContent());
                         return binderAnnotations;
                     }
                 }));
@@ -429,6 +423,11 @@ namespace ts {
             // Stirng literal
             function stringLiteralToRsExp(state: RsTranslationState, node: StringLiteral): RsStringLit {
                 return new RsStringLit(nodeToSrcSpan(node), [], node.text);
+            }
+
+            // New expression
+            function newExpressionToRsExp(state: RsTranslationState, node: NewExpression): RsNewExpr {
+                return new RsNewExpr(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeArrayToRsAST(state, node.arguments, nodeToRsExp));
             }
 
             // ExpressionStatement
@@ -479,21 +478,14 @@ namespace ts {
                     throw new Error("[refscript] Currently only supporting one declaration per declaration statement");
 
                 let declaration = node.declarationList.declarations[0];
-
-                let annotations: Annotation[] = nodeAnnotations(node, makeVariableDeclarationAnnotation);
-                let modifiers: ModifiersArray = (node.modifiers) ? node.modifiers : <ModifiersArray>[];
+                let annotations = nodeAnnotations(node, makeVariableDeclarationAnnotationFromString);
 
                 // Export (export var ... )
                 // TODO
                 // if (modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
                 //     annotations = annotations.concat(new ExportedAnnotation(nodeToSrcSpan(node)));
                 // }
-                // Ambient (declare var ... )
-                // TODO
-                // if ((node.flags & NodeFlags.Ambient) === NodeFlags.Ambient) {
-                //     // TODO: test this check
-                //     annotations = annotations.concat(new AmbientAnnotation(nodeToSrcSpan(node)));
-                // }
+
                 // Pass over the annotations to the lower levels.
                 let varDeclList = new RsList([variableDeclarationToRsVarDecl(state, declaration, annotations)]);
 
@@ -503,20 +495,14 @@ namespace ts {
 
             // VariableDeclaration
             function variableDeclarationToRsVarDecl(state: RsTranslationState, node: VariableDeclaration, annotations: Annotation[]): RsVarDecl {
-
                 if (node.name.kind === SyntaxKind.ObjectBindingPattern || node.name.kind === SyntaxKind.ArrayBindingPattern)
                     throw new Error("[refscript] Object and array binding patterns are not supported.");
 
-                let idName = <Identifier>node.name;
-
                 if (!annotations.some(a => a instanceof VariableDeclarationAnnotation)) {
                     // No type annotation given -- Use the TypeScript one
-                    let type = checker.getTypeAtLocation(node);
-                    // if (type instanceof TError) {
-                    //     state.postDiagnostic(node, Diagnostics.Cannot_translate_type_0_into_RefScript_type, [type.message()]);
-                    // }
-                    annotations = annotations.concat(
-                        [new VariableDeclarationAnnotation(nodeToSrcSpan(node), Assignability.WriteGlobal, idName.text + " :: " + checker.typeToRscString(type, node))]);
+                    let idName = <Identifier>node.name;
+                    let type = checker.typeToString(checker.getTypeAtLocation(node));
+                    annotations = annotations.concat(makeVariableDeclarationAnnotation(nodeToSrcSpan(node), idName.text, Assignability.WriteGlobal, type, node));
                 }
                 return new RsVarDecl(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
                     (node.initializer) ? new RsJust(nodeToRsExp(state, node.initializer)) : new RsNothing());
@@ -572,7 +558,7 @@ namespace ts {
                             case SyntaxKind.ConstructSignature:
                                 let constructorAnnotations = nodeAnnotations(<ConstructorDeclaration>member, makeConstructorAnnotations);
                                 if (constructorAnnotations.length > 0) {
-                                    return [constructorAnnotations[0].getContent()];
+                                    return [constructorAnnotations[0].content];
                                 }
                                 else {
                                     let constructorSignature = checker.getSignatureFromDeclaration(<ConstructorDeclaration>member);
@@ -581,7 +567,7 @@ namespace ts {
                             case SyntaxKind.MethodSignature:
                                 let methodAnnotations = nodeAnnotations(<MethodDeclaration>member, makeMethodAnnotations);
                                 if (methodAnnotations.length > 0) {
-                                    return [methodAnnotations[0].getContent()];
+                                    return [methodAnnotations[0].content];
                                 }
                                 else {
                                     let methodSignature = checker.getSignatureFromDeclaration(<MethodDeclaration>member);
@@ -590,7 +576,7 @@ namespace ts {
                             case SyntaxKind.PropertySignature:
                                 let propertyAnnotations = nodeAnnotations(<PropertyDeclaration>member, makePropertyAnnotations);
                                 if (propertyAnnotations.length > 0) {
-                                    return [propertyAnnotations[0].getContent()];
+                                    return [propertyAnnotations[0].content];
                                 }
                                 else {
                                     let propertyType = checker.getTypeAtLocation(member);
@@ -600,7 +586,7 @@ namespace ts {
                             case SyntaxKind.CallSignature:
                                 let callAnnotations = nodeAnnotations(<FunctionDeclaration>member, makeCallAnnotations);
                                 if (callAnnotations.length > 0) {
-                                    return [callAnnotations[0].getContent()];
+                                    return [callAnnotations[0].content];
                                 }
                                 else {
                                     let callSignature = checker.getSignatureFromDeclaration(<FunctionDeclaration>member);
@@ -622,14 +608,23 @@ namespace ts {
 
             function typeAliasDeclarationToRsStmt(state: RsTranslationState, node: TypeAliasDeclaration): RsEmptyStmt {
                 let annotations = nodeAnnotations(node, makeTypeAliasAnnotation);
-                if (!annotations || annotations.length < 1) {
+                if (annotations.length < 1) {
                     // Define the alias Annotations
-                    let annotationText = getTextOfNode(node.name);
+                    let annotationText = "type ";
+                    annotationText += getTextOfNode(node.name);
+                    if (node.typeParameters && node.typeParameters.length > 0) {
+                        // TODO: support for constraints
+                        annotationText += angles(node.typeParameters.map(a => a.name.text).join(", "));
+                    }
                     annotationText += " = ";
                     annotationText += checker.typeToRscString(checker.getTypeAtLocation(node.type), node);
-                    annotations = annotations.concat(makeTypeAliasAnnotation(annotationText, nodeToSrcSpan(node)));
+                    annotations = makeTypeAliasAnnotation(annotationText, nodeToSrcSpan(node));
                 }
                 return new RsEmptyStmt(nodeToSrcSpan(node), annotations);
+            }
+
+            function throwStatementToRsStmt(state: RsTranslationState, node: ThrowStatement): RsThrowStatement {
+                return new RsThrowStatement(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression));
             }
 
 
@@ -638,10 +633,10 @@ namespace ts {
             ///////////////////////////////////////////////////////
 
             /**
-             * [node description]
-             * @type {Node}
+             * Returns an array of Annotations of type A specified by the type of the creator.
+             * The return value is always an array.
              */
-            function nodeAnnotations<A extends Annotation>(node: Node, creator: (s: string, srcSpan: RsSrcSpan) => A[]): A[] {
+            function nodeAnnotations<A extends Annotation>(node: Node, creator: (s: string, srcSpan: RsSrcSpan, node?: Node) => A[]): A[] {
 
                 if (!node) return [];
 
@@ -649,7 +644,7 @@ namespace ts {
                 let comments = emptyFromUndefined(getLeadingCommentRangesOfNode(node, currentSourceFile));
                 let match = comments.map(extractBinderAndAnnotation);
 
-                return concat(match.filter(t => t !== null).map(t => creator(t.cstring, t.ss)));
+                return concat(match.filter(t => t !== null).map(t => creator(t.cstring, t.ss, node)));
 
                 function extractBinderAndAnnotation(commentRange: CommentRange) {
                     let commentText = currentSourceFile.text.substring(commentRange.pos, commentRange.end);

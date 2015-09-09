@@ -18,7 +18,7 @@ module ts {
     export enum Assignability {
         WriteLocal,
         WriteGlobal,
-        ReadOnly,
+        Ambient,
         Error
     }
 
@@ -62,10 +62,6 @@ module ts {
         public serialize(): any {
             return aesonEncode(AnnotationKind[this.kind], [this.sourceSpan.serialize(), this.content]);
         }
-
-        public getContent(): string {
-            return this.content;
-        }
     }
 
     export class FunctionDeclarationAnnotation extends Annotation {
@@ -93,36 +89,8 @@ module ts {
     }
 
     export class VariableDeclarationAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan, public asgn: Assignability, content: string) {
-            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, content);
-        }
-
-        public name: string;
-
-        public getName(node: Node, state: RsTranslationState): string {
-            if (this.name)
-                return this.name;
-
-            // variable annotation
-            var bs = this.getContent().split("::");
-            if (bs && bs.length > 1) {
-                let lhss = bs[0].split(" ").filter(s => s.length > 0);
-                if (lhss && lhss.length === 1) {
-                    this.name = lhss[0];
-                    return this.name;
-                }
-            }
-
-            state.postDiagnostic(node, ts.Diagnostics.Invalid_RefScript_annotation_0_Perhaps_you_need_to_replace_Colon_with_Colon_Colon, [this.getContent()]);
-            return "";
-        }
-
-        public getContent(): string {
-            let s = "";
-            if (this.asgn === Assignability.ReadOnly) s += "readonly ";
-            else if (this.asgn === Assignability.WriteGlobal) s += "global ";
-            else if (this.asgn === Assignability.WriteLocal) s += "local ";
-            return s + super.getContent();
+        constructor(sourceSpan: RsSrcSpan, name: string, asgn: Assignability, type: string) {
+            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, [assignabilityToString(asgn), name, "::", type].join(" "));
         }
     }
 
@@ -147,30 +115,6 @@ module ts {
     export class FieldAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.FieldRawSpec, content);
-        }
-
-        public name: string;
-
-        public getName(node: Node, state: RsTranslationState): string {
-            if (this.name)
-                return this.name;
-
-            let bs = this.getContent().split(":");
-            if (bs && bs.length > 1) {
-                var lhss = bs[0].split(" ").filter(s => s.length > 0);
-                if (lhss && lhss.length === 1) {
-                    this.name = lhss[0];
-                    return this.name;
-                }
-                // The first argument may be the static modifier.
-                if (lhss && lhss.length === 2) {
-                    this.name = lhss[1];
-                    return this.name;
-                }
-            }
-
-            state.postDiagnostic(node, ts.Diagnostics.Invalid_RefScript_annotation_0_Perhaps_you_need_to_replace_Colon_with_Colon_Colon, [this.getContent()]);
-            return "";
         }
     }
 
@@ -223,11 +167,7 @@ module ts {
     /** A class annotation provided by the user */
     export class ExplicitClassAnnotation extends ClassAnnotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, content);
-        }
-
-        public getContent(): string {
-            return "class " + super.getContent();
+            super(sourceSpan, ["class", content].join(" "));
         }
     }
 
@@ -251,24 +191,72 @@ module ts {
         return a instanceof GlobalAnnotation;
     }
 
-    export function makeVariableDeclarationAnnotation(s: string, srcSpan: RsSrcSpan): VariableDeclarationAnnotation[] {
+    export function makeVariableDeclarationAnnotationFromString(s: string, srcSpan: RsSrcSpan, node?: VariableDeclaration): VariableDeclarationAnnotation[] {
         let tokens = stringTokens(s);
 
         if (!tokens || tokens.length <= 0)
-            throw new Error("RsAnnotation could not parse string tag: " + s);
+            throw new Error("[refscript] RsAnnotation could not parse string tag: " + s);
 
         if (isReservedAnnotationPrefix(tokens[0]))
             return [];
 
-        switch (tokens[0]) {
-            case "[readonly]":
-                return [new VariableDeclarationAnnotation(srcSpan, Assignability.ReadOnly, tokens.slice(1).join(" "))];
-            case "[local]":
-                return [new VariableDeclarationAnnotation(srcSpan, Assignability.WriteLocal, tokens.slice(1).join(" "))];
-            case "[global]":
-                return [new VariableDeclarationAnnotation(srcSpan, Assignability.WriteGlobal, tokens.slice(1).join(" "))];
+        let assignability = stringToAssignability();
+        let name = stringToName();
+        let type = stringToType();
+
+        return makeVariableDeclarationAnnotation(srcSpan, name, assignability, type, node);
+
+        function stringToAssignability() {
+            if (tokens[0] && (indexOfEq(["[readonly]", "[local]", "[global]"], tokens[0]) === -1)) {
+                switch (tokens[0]) {
+                    case "[readonly]":
+                        return Assignability.Ambient;
+                    case "[local]":
+                        return Assignability.WriteLocal;
+                    case "global":
+                        return Assignability.WriteGlobal;
+                    default:
+                        return Assignability.WriteGlobal;
+                }
+            }
+            return Assignability.WriteGlobal;
+        }
+
+        function stringToName() {
+            let dcolonIdx = indexOfEq(tokens, "::");
+            if (dcolonIdx > 0) {
+                return tokens[dcolonIdx - 1];
+            }
+            throw new Error("[refscript] Invalid annotation: " + tokens.join(" "));
+        }
+
+        function stringToType() {
+            let dcolonIdx = indexOfEq(tokens, "::");
+            if (dcolonIdx > 0) {
+                return tokens.slice(dcolonIdx + 1).join(" ");
+            }
+            throw new Error("[refscript] Invalid annotation: " + tokens.join(" "));
+        }
+    }
+
+    export function makeVariableDeclarationAnnotation(srcSpan: RsSrcSpan, name: string, assignability: Assignability, type: string, node?: Node): VariableDeclarationAnnotation[] {
+        // If this is an ambient declaration (declare var ... ), then overwrite the remaining annotations
+        if (node && (getCombinedNodeFlags(node) & NodeFlags.Ambient)) {
+            return [new VariableDeclarationAnnotation(srcSpan, name, Assignability.Ambient, type)];
+        }
+        return [new VariableDeclarationAnnotation(srcSpan, name, assignability, type)];
+    }
+
+    function assignabilityToString(assignability: Assignability): string {
+        switch (assignability) {
+            case Assignability.Ambient:
+                return "ambient";
+            case Assignability.WriteGlobal:
+                return "global";
+            case Assignability.WriteLocal:
+                return "local";
             default:
-                return [new VariableDeclarationAnnotation(srcSpan, Assignability.WriteGlobal, tokens.join(" "))];
+                return "global";
         }
     }
 
@@ -324,9 +312,10 @@ module ts {
 
     export function makeTypeAliasAnnotation(s: string, srcSpan: RsSrcSpan): TypeAliasAnnotation[] {
         let tokens = stringTokens(s);
-        if (!tokens || tokens.length < 2 || tokens[0] !== "type")
-            return [];
-        return [new TypeAliasAnnotation(srcSpan, s)];
+        if (tokens && tokens.length > 0 && tokens[0] === "type") {
+            return [new TypeAliasAnnotation(srcSpan, s)];
+        }
+        return [];
     }
 
     /**
@@ -346,7 +335,7 @@ module ts {
                 return AnnotationKind.QualifierRawSpec;
             case "interface":
                 return AnnotationKind.InterfaceRawSpec;
-            case "alias":
+            case "type":
                 return AnnotationKind.TypeAliasRawSpec;
             case "class":
                 return AnnotationKind.ClassRawSpec;
