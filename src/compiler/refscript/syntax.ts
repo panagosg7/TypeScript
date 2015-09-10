@@ -65,6 +65,10 @@ module ts {
         public serialize(): any {
             return this.members.map(m => m.serialize());
         }
+
+        public prefixElement(element: T) {
+            this.members.push(element);
+        }
     }
 
     export class RsPair<S extends RsAST, T extends RsAST> extends RsAST {

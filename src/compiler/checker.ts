@@ -77,7 +77,8 @@ namespace ts {
             typeToString,
             typeToRscString,
             signatureToString,
-            signatureToRscString,
+            methodToRscString,
+            functionToRscString,
             getSymbolDisplayBuilder,
             symbolToString,
             getAugmentedPropertiesOfType,
@@ -1462,8 +1463,12 @@ namespace ts {
         }
 
         // RSC
-        function signatureToRscString(signature: Signature, enclosingDeclaration: Node): string {
+        function methodToRscString(signature: Signature, enclosingDeclaration: Node): string {
             return signatureToString(signature, enclosingDeclaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType);
+        }
+
+        function functionToRscString(signature: Signature, enclosingDeclaration: Node): string {
+            return signatureToString(signature, enclosingDeclaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType | TypeFormatFlags.WriteArrowStyleSignature);
         }
 
         function typeToString(type: Type, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string {

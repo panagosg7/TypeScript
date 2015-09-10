@@ -34,6 +34,7 @@ module ts {
         ConstructorRawSpec,            // Constructor specification
         CallRawSpec,                   // Call specification
         CastRawSpec,                   // Cast
+        ExportRawSpec,                 // Exported element
 
         // Global
         MeasureRawSpec,                // Measure
@@ -123,9 +124,16 @@ module ts {
             super(sourceSpan, AnnotationKind.MethodRawSpec, content);
         }
     }
+
     export class CallAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.CallRawSpec, content);
+        }
+    }
+
+    export class ExportedAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan) {
+            super(sourceSpan, AnnotationKind.ExportRawSpec, "");
         }
     }
 
@@ -310,10 +318,30 @@ module ts {
         return [new InterfaceDeclarationAnnotation(srcSpan, s)];
     }
 
-    export function makeTypeAliasAnnotation(s: string, srcSpan: RsSrcSpan): TypeAliasAnnotation[] {
+    export function makeTypeAliasAnnotations(s: string, srcSpan: RsSrcSpan): TypeAliasAnnotation[] {
         let tokens = stringTokens(s);
         if (tokens && tokens.length > 0 && tokens[0] === "type") {
             return [new TypeAliasAnnotation(srcSpan, s)];
+        }
+        return [];
+    }
+
+    export function makeGlobalAnnotations(s: string, srcSpan: RsSrcSpan): GlobalAnnotation[] {
+        let tokens = stringTokens(s);
+        if (tokens && tokens.length > 0) {
+            let content = tokens.slice(1).join(" ");
+            switch (tokens[0]) {
+                case "measure":
+                    return [new GlobalAnnotation(srcSpan, AnnotationKind.MeasureRawSpec, content)];
+                case "qualif":
+                    return [new GlobalAnnotation(srcSpan, AnnotationKind.QualifierRawSpec, content)];
+                case "predicate":
+                    return [new GlobalAnnotation(srcSpan, AnnotationKind.PredicateAliasRawSpec, content)];
+                case "invariant":
+                    return [new GlobalAnnotation(srcSpan, AnnotationKind.InvariantRawSpec, content)];
+                case "option":
+                    return [new GlobalAnnotation(srcSpan, AnnotationKind.OptionRawSpec, content)];
+            }
         }
         return [];
     }

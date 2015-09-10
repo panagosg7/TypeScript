@@ -1441,7 +1441,8 @@ namespace ts {
         typeToString(type: Type, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;
         typeToRscString(type: Type, enclosingDeclaration: Node): string;    // RSC
         signatureToString(signature: Signature, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;
-        signatureToRscString(signature: Signature, enclosingDeclaration: Node): string;  //RSC    
+        methodToRscString(signature: Signature, enclosingDeclaration: Node): string;  //RSC
+        functionToRscString(signature: Signature, enclosingDeclaration: Node): string;  //RSC        
         symbolToString(symbol: Symbol, enclosingDeclaration?: Node, meaning?: SymbolFlags): string;
         getSymbolDisplayBuilder(): SymbolDisplayBuilder;
         getFullyQualifiedName(symbol: Symbol): string;
