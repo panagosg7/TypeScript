@@ -99,3 +99,6 @@ For details on our planned features and future direction please refer to our [ro
 To build, do `jake tsc` first (this copies over some .d.ts files).
 
 After that `tsc` (using tsconfig.json) should work. Same with Atom's build keybinding.
+
+To regenerate diagnostics: `jake generate-diagnostics`
+

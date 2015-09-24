@@ -1,6 +1,4 @@
 
-//<reference path='..\ts.ts' />
-
 module ts {
 
     export class Pair<A, B> {
@@ -70,6 +68,12 @@ module ts {
             super(sourceSpan, AnnotationKind.FunctionDeclarationRawSpec, content);
         }
     }
+    
+    export class ConstructorDeclarationAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.ConstructorRawSpec, content);
+        }
+    }
 
     export class TypeSignatureAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
@@ -88,10 +92,16 @@ module ts {
             super(sourceSpan, AnnotationKind.TypeAliasRawSpec, content);
         }
     }
+    
+    export class ClassStatementAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.ClassRawSpec, content);
+        }
+    }
 
     export class VariableDeclarationAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan, name: string, asgn: Assignability, type: string) {
-            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, [assignabilityToString(asgn), name, "::", type].join(" "));
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, content);
         }
     }
 
@@ -143,9 +153,9 @@ module ts {
         }
     }
 
-    export class ConstructorAnnotation extends Annotation {
+    export class CastAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.ConstructorRawSpec, content);
+            super(sourceSpan, AnnotationKind.CastRawSpec, content);
         }
     }
 
@@ -199,73 +209,16 @@ module ts {
         return a instanceof GlobalAnnotation;
     }
 
-    export function makeVariableDeclarationAnnotationFromString(s: string, srcSpan: RsSrcSpan, node?: VariableDeclaration): VariableDeclarationAnnotation[] {
+    export function makeVariableDeclarationAnnotation(s: string, srcSpan: RsSrcSpan, node?: VariableDeclaration): VariableDeclarationAnnotation[] {
         let tokens = stringTokens(s);
-
         if (!tokens || tokens.length <= 0)
             throw new Error("[refscript] RsAnnotation could not parse string tag: " + s);
-
         if (isReservedAnnotationPrefix(tokens[0]))
             return [];
-
-        let assignability = stringToAssignability();
-        let name = stringToName();
-        let type = stringToType();
-
-        return makeVariableDeclarationAnnotation(srcSpan, name, assignability, type, node);
-
-        function stringToAssignability() {
-            if (tokens[0] && (indexOfEq(["[readonly]", "[local]", "[global]"], tokens[0]) === -1)) {
-                switch (tokens[0]) {
-                    case "[readonly]":
-                        return Assignability.Ambient;
-                    case "[local]":
-                        return Assignability.WriteLocal;
-                    case "global":
-                        return Assignability.WriteGlobal;
-                    default:
-                        return Assignability.WriteGlobal;
-                }
-            }
-            return Assignability.WriteGlobal;
-        }
-
-        function stringToName() {
-            let dcolonIdx = indexOfEq(tokens, "::");
-            if (dcolonIdx > 0) {
-                return tokens[dcolonIdx - 1];
-            }
-            throw new Error("[refscript] Invalid annotation: " + tokens.join(" "));
-        }
-
-        function stringToType() {
-            let dcolonIdx = indexOfEq(tokens, "::");
-            if (dcolonIdx > 0) {
-                return tokens.slice(dcolonIdx + 1).join(" ");
-            }
-            throw new Error("[refscript] Invalid annotation: " + tokens.join(" "));
-        }
-    }
-
-    export function makeVariableDeclarationAnnotation(srcSpan: RsSrcSpan, name: string, assignability: Assignability, type: string, node?: Node): VariableDeclarationAnnotation[] {
-        // If this is an ambient declaration (declare var ... ), then overwrite the remaining annotations
         if (node && (getCombinedNodeFlags(node) & NodeFlags.Ambient)) {
-            return [new VariableDeclarationAnnotation(srcSpan, name, Assignability.Ambient, type)];
+            return [new VariableDeclarationAnnotation(srcSpan, "ambient " + s)];
         }
-        return [new VariableDeclarationAnnotation(srcSpan, name, assignability, type)];
-    }
-
-    function assignabilityToString(assignability: Assignability): string {
-        switch (assignability) {
-            case Assignability.Ambient:
-                return "ambient";
-            case Assignability.WriteGlobal:
-                return "global";
-            case Assignability.WriteLocal:
-                return "local";
-            default:
-                return "global";
-        }
+        return [new VariableDeclarationAnnotation(srcSpan, s)];
     }
 
     export function makeFunctionDeclarationAnnotation(s: string, srcSpan: RsSrcSpan): FunctionDeclarationAnnotation[] {
@@ -276,11 +229,11 @@ module ts {
         return [new FunctionDeclarationAnnotation(srcSpan, s)];
     }
 
-    export function makeConstructorAnnotations(s: string, srcSpan: RsSrcSpan): ConstructorAnnotation[] {
+    export function makeConstructorAnnotations(s: string, srcSpan: RsSrcSpan): ConstructorDeclarationAnnotation[] {
         let tokens = stringTokens(s);
-        if (!tokens || tokens[0] !== "new")
+        if (!tokens || tokens[0] !== "constructor")
             throw new Error("[refscript] Invalid constructor annotation: " + s);
-        return [new ConstructorAnnotation(srcSpan, s)];
+        return [new ConstructorDeclarationAnnotation(srcSpan, s)];
     }
 
     export function makeMethodAnnotations(s: string, srcSpan: RsSrcSpan): MethodAnnotation[] {
@@ -324,6 +277,25 @@ module ts {
             return [new TypeAliasAnnotation(srcSpan, s)];
         }
         return [];
+    }
+    
+    export function makeClassStatementAnnotations(s: string, srcSpan: RsSrcSpan): ClassStatementAnnotation[] {
+        let tokens = stringTokens(s);
+        if (tokens && tokens.length > 0 && tokens[0] === "class") {
+            return [new ClassStatementAnnotation(srcSpan, s)];
+        }
+        return [];
+    }
+
+    export function makeFunctionExpressionAnnotations(s: string, srcSpan: RsSrcSpan): FunctionExpressionAnnotation[] {
+        let tokens = stringTokens(s);
+        if (isReservedAnnotationPrefix(tokens[0]))
+            throw new Error("[refscript] Invalid function expression annotation: " + s);
+        return [new FunctionExpressionAnnotation(srcSpan, s)];
+    }
+
+    export function makeCastAnnotations(s: string, srcSpan: RsSrcSpan): CastAnnotation[] {
+        return [new CastAnnotation(srcSpan, s)];
     }
 
     export function makeGlobalAnnotations(s: string, srcSpan: RsSrcSpan): GlobalAnnotation[] {

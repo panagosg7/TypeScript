@@ -2594,7 +2594,10 @@
      "RefScript does not support the cast: '{0}'.": {
          "category": "Unimplemented",
          "code": 10037
+     },
+     "The first type parameter of class '{0}' needs to extend a mutability type.": {                        
+         "category": "Error",
+         "code": 10038
      }
-
-
+     
  }

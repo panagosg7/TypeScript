@@ -650,5 +650,6 @@ namespace ts {
         Constructor_parent_has_not_been_set: { code: 10035, category: DiagnosticCategory.Bug, key: "Constructor parent has not been set." },
         Invalid_enumeration_entry_for_0: { code: 10036, category: DiagnosticCategory.Unimplemented, key: "Invalid enumeration entry for '{0}'." },
         RefScript_does_not_support_the_cast_Colon_0: { code: 10037, category: DiagnosticCategory.Unimplemented, key: "RefScript does not support the cast: '{0}'." },
+        The_first_type_parameter_of_class_0_needs_to_extend_a_mutability_type: { code: 10038, category: DiagnosticCategory.Error, key: "The first type parameter of class '{0}' needs to extend a mutability type." },
     };
 }

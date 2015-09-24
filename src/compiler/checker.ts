@@ -21,7 +21,7 @@ namespace ts {
         return symbol.id;
     }
 
-    export function createTypeChecker(host: TypeCheckerHost, produceDiagnostics: boolean): TypeChecker {
+    export function createTypeChecker(host: TypeCheckerHost, produceDiagnostics: boolean, refscript = false): TypeChecker {
         // Cancellation that controls whether or not we can cancel in the middle of type checking.
         // In general cancelling is *not* safe for the type checker.  We might be in the middle of
         // computing something, and we will leave our internals in an inconsistent state.  Callers
@@ -75,7 +75,6 @@ namespace ts {
             getShorthandAssignmentValueSymbol,
             getTypeAtLocation: getTypeOfNode,
             typeToString,
-            typeToRscString,
             signatureToString,
             methodToRscString,
             functionToRscString,
@@ -136,10 +135,13 @@ namespace ts {
         let globalObjectType: ObjectType;
         let globalFunctionType: ObjectType;
         let globalArrayType: GenericType;
+        let globalReadOnlyType: ObjectType;
         let globalStringType: ObjectType;
         let globalNumberType: ObjectType;
         let globalBooleanType: ObjectType;
         let globalRegExpType: ObjectType;
+        let globalMutableType: ObjectType;
+        let globalImmutableType: ObjectType;
         let globalTemplateStringsArrayType: ObjectType;
         let globalESSymbolType: ObjectType;
         let jsxElementType: ObjectType;
@@ -1455,14 +1457,13 @@ namespace ts {
 
         function signatureToString(signature: Signature, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string {
             let writer = getSingleLineStringWriter();
-            getSymbolDisplayBuilder().buildSignatureDisplay(signature, writer, enclosingDeclaration, flags);
+            getSymbolDisplayBuilder().buildSignatureDisplay(signature, writer, enclosingDeclaration, flags);           // RSC
             let result = writer.string();
             releaseStringWriter(writer);
 
             return result;
         }
 
-        // RSC
         function methodToRscString(signature: Signature, enclosingDeclaration: Node): string {
             return signatureToString(signature, enclosingDeclaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType);
         }
@@ -1472,8 +1473,11 @@ namespace ts {
         }
 
         function typeToString(type: Type, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string {
+            if (refscript) {
+                flags = TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType;
+            }
             let writer = getSingleLineStringWriter();
-            getSymbolDisplayBuilder().buildTypeDisplay(type, writer, enclosingDeclaration, flags);
+            getSymbolDisplayBuilder().buildTypeDisplay(type, writer, enclosingDeclaration, flags);                 // RSC
             let result = writer.string();
             releaseStringWriter(writer);
 
@@ -1482,11 +1486,6 @@ namespace ts {
                 result = result.substr(0, maxLength - "...".length) + "...";
             }
             return result;
-        }
-
-        // RSC
-        function typeToRscString(type: Type, enclosingDeclaration: Node): string {
-            return typeToString(type, enclosingDeclaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType);
         }
 
         function getTypeAliasForTypeLiteral(type: Type): Symbol {
@@ -1722,10 +1721,12 @@ namespace ts {
                 }
 
                 function writeUnionOrIntersectionType(type: UnionOrIntersectionType, flags: TypeFormatFlags) {
+                    let unionSeparator = (refscript) ? SyntaxKind.PlusToken : SyntaxKind.BarToken;
+
                     if (flags & TypeFormatFlags.InElementType) {
                         writePunctuation(writer, SyntaxKind.OpenParenToken);
                     }
-                    writeTypeList(type.types, type.flags & TypeFlags.Union ? SyntaxKind.BarToken : SyntaxKind.AmpersandToken);
+                    writeTypeList(type.types, type.flags & TypeFlags.Union ? unionSeparator : SyntaxKind.AmpersandToken);
                     if (flags & TypeFormatFlags.InElementType) {
                         writePunctuation(writer, SyntaxKind.CloseParenToken);
                     }
@@ -1742,7 +1743,7 @@ namespace ts {
                             writeTypeofSymbol(type, flags);
                         }
                         else if (contains(symbolStack, symbol)) {
-                            // If type is an anonymous type literal in a type alias declaration, use type alias name
+                            // If type is an anonymous type literal in a type alias declaration, use type alias name                            
                             let typeAlias = getTypeAliasForTypeLiteral(type);
                             if (typeAlias) {
                                 // The specified symbol flags need to be reinterpreted as type flags
@@ -2021,8 +2022,8 @@ namespace ts {
             }
 
             return _displayBuilder || (_displayBuilder = {
-                buildSymbolDisplay,
                 buildTypeDisplay,
+                buildSymbolDisplay,
                 buildTypeParameterDisplay,
                 buildParameterDisplay,
                 buildDisplayForParametersAndDelimiters,
@@ -3144,7 +3145,7 @@ namespace ts {
         }
 
         function findMatchingSignature(signatureList: Signature[], signature: Signature, partialMatch: boolean, ignoreReturnTypes: boolean): Signature {
-            for (let s of signatureList)  {
+            for (let s of signatureList) {
                 if (compareSignatures(s, signature, partialMatch, ignoreReturnTypes, compareTypes)) {
                     return s;
                 }
@@ -3937,12 +3938,12 @@ namespace ts {
                 // We only support expressions that are simple qualified names. For other expressions this produces undefined.
                 let typeNameOrExpression = node.kind === SyntaxKind.TypeReference ? (<TypeReferenceNode>node).typeName :
                     isSupportedExpressionWithTypeArguments(<ExpressionWithTypeArguments>node) ? (<ExpressionWithTypeArguments>node).expression :
-                    undefined;
+                        undefined;
                 let symbol = typeNameOrExpression && resolveEntityName(typeNameOrExpression, SymbolFlags.Type) || unknownSymbol;
                 let type = symbol === unknownSymbol ? unknownType :
                     symbol.flags & (SymbolFlags.Class | SymbolFlags.Interface) ? getTypeFromClassOrInterfaceReference(node, symbol) :
-                    symbol.flags & SymbolFlags.TypeAlias ? getTypeFromTypeAliasReference(node, symbol) :
-                    getTypeFromNonGenericTypeReference(node, symbol);
+                        symbol.flags & SymbolFlags.TypeAlias ? getTypeFromTypeAliasReference(node, symbol) :
+                            getTypeFromNonGenericTypeReference(node, symbol);
                 // Cache both the resolved symbol and the resolved type. The resolved symbol is needed in when we check the
                 // type reference in checkTypeReferenceOrExpressionWithTypeArguments.
                 links.resolvedSymbol = symbol;
@@ -4039,20 +4040,39 @@ namespace ts {
         /**
          * Instantiates a global type that is generic with some element type, and returns that instantiation.
          */
-        function createTypeFromGenericGlobalType(genericGlobalType: GenericType, elementType: Type): Type {
-            return <ObjectType>genericGlobalType !== emptyGenericType ? createTypeReference(genericGlobalType, [elementType]) : emptyObjectType;
+        function createTypeFromGenericGlobalType(genericGlobalType: GenericType, mutabilityType: Type, elementType: Type): Type {
+            return <ObjectType>genericGlobalType !== emptyGenericType ? createTypeReference(genericGlobalType, [mutabilityType, elementType]) : emptyObjectType;
         }
 
         function createIterableType(elementType: Type): Type {
-            return createTypeFromGenericGlobalType(globalIterableType, elementType);
+            throw new Error("[refscript] createIterableType not supported.");
+            return createTypeFromGenericGlobalType(globalIterableType, undefined, elementType);
         }
 
         function createIterableIteratorType(elementType: Type): Type {
-            return createTypeFromGenericGlobalType(globalIterableIteratorType, elementType);
+            throw new Error("[refscript] createIterableIteratorType not supported.");
+            return createTypeFromGenericGlobalType(globalIterableIteratorType, undefined, elementType);
         }
 
-        function createArrayType(elementType: Type): Type {
-            return createTypeFromGenericGlobalType(globalArrayType, elementType);
+
+        // HEREHERE
+        function createArrayType(elementType: Type, mutabilityType = globalImmutableType): Type {
+            // let mutabilityTypeParameter = <TypeParameter>createType(TypeFlags.TypeParameter);
+            // // PV: '__MM__' should be a "hard-to-guess" type variable name
+            // mutabilityTypeParameter.symbol = createSymbol(SymbolFlags.TypeParameter, "__MM__");
+            // mutabilityTypeParameter.constraint = globalReadOnlyType;
+            
+            let t = createTypeFromGenericGlobalType(globalArrayType, mutabilityType, elementType);
+            
+            // console.log("[createArrayType(" +
+            //     checker.typeToString(mutabilityType, undefined) +  ", " +
+            //     checker.typeToString(elementType, undefined) +
+            //      ")] " + checker.typeToString(t, undefined));
+
+            return t;           
+
+            // RSC: Original Code
+            //return createTypeFromGenericGlobalType(globalArrayType, elementType);
         }
 
         function getTypeFromArrayTypeNode(node: ArrayTypeNode): Type {
@@ -4790,8 +4810,8 @@ namespace ts {
                             // reasoning about what went wrong.
                             errorNode = prop.valueDeclaration
                             reportError(Diagnostics.Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                                        symbolToString(prop),
-                                        typeToString(target));
+                                symbolToString(prop),
+                                typeToString(target));
                         }
                         return true;
                     }
@@ -6836,7 +6856,7 @@ namespace ts {
             return node === conditional.whenTrue || node === conditional.whenFalse ? getContextualType(conditional) : undefined;
         }
 
-        function getContextualTypeForJsxExpression(expr: JsxExpression|JsxSpreadAttribute): Type {
+        function getContextualTypeForJsxExpression(expr: JsxExpression | JsxSpreadAttribute): Type {
             // Contextual type only applies to JSX expressions that are in attribute assignments (not in 'Children' positions)
             if (expr.parent.kind === SyntaxKind.JsxAttribute) {
                 let attrib = <JsxAttribute>expr.parent;
@@ -7036,6 +7056,11 @@ namespace ts {
             let elementTypes: Type[] = [];
             let inDestructuringPattern = isAssignmentTarget(node);
             for (let e of elements) {
+
+                // RSC
+                if (inDestructuringPattern)
+                    throw new Error("[refscript] Destructuring pattern is not supported.");
+
                 if (inDestructuringPattern && e.kind === SyntaxKind.SpreadElementExpression) {
                     // Given the following situation:
                     //    var c: {};
@@ -7062,12 +7087,14 @@ namespace ts {
                 }
                 hasSpreadElement = hasSpreadElement || e.kind === SyntaxKind.SpreadElementExpression;
             }
+
             if (!hasSpreadElement) {
                 let contextualType = getContextualType(node);
                 if (contextualType && contextualTypeIsTupleLikeType(contextualType) || inDestructuringPattern) {
                     return createTupleType(elementTypes);
                 }
             }
+
             return createArrayType(getUnionType(elementTypes));
         }
 
@@ -7275,7 +7302,7 @@ namespace ts {
         /**
          * Returns true iff React would emit this tag name as a string rather than an identifier or qualified name
          */
-        function isJsxIntrinsicIdentifier(tagName: Identifier|QualifiedName) {
+        function isJsxIntrinsicIdentifier(tagName: Identifier | QualifiedName) {
             if (tagName.kind === SyntaxKind.QualifiedName) {
                 return false;
             }
@@ -7361,7 +7388,7 @@ namespace ts {
         /// If this is a class-based tag (otherwise returns undefined), returns the symbol of the class
         /// type or factory function.
         /// Otherwise, returns unknownSymbol.
-        function getJsxElementTagSymbol(node: JsxOpeningLikeElement|JsxClosingElement): Symbol {
+        function getJsxElementTagSymbol(node: JsxOpeningLikeElement | JsxClosingElement): Symbol {
             let flags: JsxFlags = JsxFlags.UnknownElement;
             let links = getNodeLinks(node);
             if (!links.resolvedSymbol) {
@@ -7373,7 +7400,7 @@ namespace ts {
             }
             return links.resolvedSymbol;
 
-            function lookupIntrinsicTag(node: JsxOpeningLikeElement|JsxClosingElement): Symbol {
+            function lookupIntrinsicTag(node: JsxOpeningLikeElement | JsxClosingElement): Symbol {
                 let intrinsicElementsType = getJsxIntrinsicElementsType();
                 if (intrinsicElementsType !== unknownType) {
                     // Property case
@@ -7401,7 +7428,7 @@ namespace ts {
                 }
             }
 
-            function lookupClassTag(node: JsxOpeningLikeElement|JsxClosingElement): Symbol {
+            function lookupClassTag(node: JsxOpeningLikeElement | JsxClosingElement): Symbol {
                 let valueSymbol: Symbol = resolveJsxTagName(node);
 
                 // Look up the value in the current scope
@@ -7413,7 +7440,7 @@ namespace ts {
                 return valueSymbol || unknownSymbol;
             }
 
-            function resolveJsxTagName(node: JsxOpeningLikeElement|JsxClosingElement): Symbol {
+            function resolveJsxTagName(node: JsxOpeningLikeElement | JsxClosingElement): Symbol {
                 if (node.tagName.kind === SyntaxKind.Identifier) {
                     let tag = <Identifier>node.tagName;
                     let sym = getResolvedSymbol(tag);
@@ -10932,7 +10959,7 @@ namespace ts {
 
             // Abstract methods can't have an implementation -- in particular, they don't need one.
             if (!isExportSymbolInsideModule && lastSeenNonAmbientDeclaration && !lastSeenNonAmbientDeclaration.body &&
-                !(lastSeenNonAmbientDeclaration.flags & NodeFlags.Abstract) ) {
+                !(lastSeenNonAmbientDeclaration.flags & NodeFlags.Abstract)) {
                 reportImplementationExpectedError(lastSeenNonAmbientDeclaration);
             }
 
@@ -11852,7 +11879,7 @@ namespace ts {
 
         function checkGrammarDisallowedModifiersOnObjectLiteralExpressionMethod(node: Node) {
             // We only disallow modifier on a method declaration if it is a property of object-literal-expression
-            if (node.modifiers && node.parent.kind === SyntaxKind.ObjectLiteralExpression){
+            if (node.modifiers && node.parent.kind === SyntaxKind.ObjectLiteralExpression) {
                 if (isAsyncFunctionLike(node)) {
                     if (node.modifiers.length > 1) {
                         return grammarErrorOnFirstToken(node, Diagnostics.Modifiers_cannot_appear_here);
@@ -12641,6 +12668,19 @@ namespace ts {
                 checkIndexConstraints(type);
                 checkTypeForDuplicateIndexSignatures(node);
             }
+            
+            // RSC checks on mutability
+            if (node.typeParameters && node.typeParameters.length > 0) {
+                let firstTypeParamter = node.typeParameters[0];
+                // PV: this is not a very robust check...
+                if (firstTypeParamter.constraint && (indexOfEq(["ReadOnly", "Mutable", "Imuutable"], getTextOfNode(firstTypeParamter.constraint)) < 0)) {                    
+                    error(node, Diagnostics.The_first_type_parameter_of_class_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
+                }
+            }
+            else {
+                error(node, Diagnostics.The_first_type_parameter_of_class_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
+            }
+
         }
 
         function getTargetSymbol(s: Symbol) {
@@ -12691,7 +12731,7 @@ namespace ts {
                         // It is an error to inherit an abstract member without implementing it or being declared abstract.
                         // If there is no declaration for the derived class (as in the case of class expressions),
                         // then the class cannot be declared abstract.
-                        if ( baseDeclarationFlags & NodeFlags.Abstract && (!derivedClassDecl || !(derivedClassDecl.flags & NodeFlags.Abstract))) {
+                        if (baseDeclarationFlags & NodeFlags.Abstract && (!derivedClassDecl || !(derivedClassDecl.flags & NodeFlags.Abstract))) {
                             error(derivedClassDecl, Diagnostics.Non_abstract_class_0_does_not_implement_inherited_abstract_member_1_from_class_2,
                                 typeToString(type), symbolToString(baseProperty), typeToString(baseType));
                         }
@@ -13821,8 +13861,8 @@ namespace ts {
                             if (className) {
                                 copySymbol(location.symbol, meaning);
                             }
-                            // fall through; this fall-through is necessary because we would like to handle
-                            // type parameter inside class expression similar to how we handle it in classDeclaration and interface Declaration
+                        // fall through; this fall-through is necessary because we would like to handle
+                        // type parameter inside class expression similar to how we handle it in classDeclaration and interface Declaration
                         case SyntaxKind.ClassDeclaration:
                         case SyntaxKind.InterfaceDeclaration:
                             // If we didn't come from static member of class or interface,
@@ -13964,8 +14004,8 @@ namespace ts {
                 return resolveEntityName(<EntityName>entityName, meaning);
             }
             else if ((entityName.parent.kind === SyntaxKind.JsxOpeningElement) ||
-                     (entityName.parent.kind === SyntaxKind.JsxSelfClosingElement) ||
-                     (entityName.parent.kind === SyntaxKind.JsxClosingElement)) {
+                (entityName.parent.kind === SyntaxKind.JsxSelfClosingElement) ||
+                (entityName.parent.kind === SyntaxKind.JsxClosingElement)) {
                 return getJsxElementTagSymbol(<JsxOpeningLikeElement>entityName.parent);
             }
             else if (isExpression(entityName)) {
@@ -14032,8 +14072,8 @@ namespace ts {
                         : getSymbolOfPartOfRightHandSideOfImportEquals(<Identifier>node);
                 }
                 else if (node.parent.kind === SyntaxKind.BindingElement &&
-                        node.parent.parent.kind === SyntaxKind.ObjectBindingPattern &&
-                        node === (<BindingElement>node.parent).propertyName) {
+                    node.parent.parent.kind === SyntaxKind.ObjectBindingPattern &&
+                    node === (<BindingElement>node.parent).propertyName) {
                     let typeOfPattern = getTypeOfNode(node.parent.parent);
                     let propertyDeclaration = typeOfPattern && getPropertyOfType(typeOfPattern, (<Identifier>node).text);
 
@@ -14070,7 +14110,7 @@ namespace ts {
                             (<ImportDeclaration>node.parent).moduleSpecifier === node)) {
                         return resolveExternalModuleName(node, <LiteralExpression>node);
                     }
-                    // Fall through
+                // Fall through
 
                 case SyntaxKind.NumericLiteral:
                     // index access
@@ -14097,6 +14137,7 @@ namespace ts {
         }
 
         function getTypeOfNode(node: Node): Type {
+
             if (isInsideWithStatementBody(node)) {
                 // We cannot answer semantic questions within a with block, do not proceed any further
                 return unknownType;
@@ -14127,7 +14168,7 @@ namespace ts {
                 return symbol && getDeclaredTypeOfSymbol(symbol);
             }
 
-            if (isDeclaration(node)) {
+            if (isDeclaration(node)) {               
                 // In this case, we call getSymbolOfNode instead of getSymbolAtLocation because it is a declaration
                 let symbol = getSymbolOfNode(node);
                 return getTypeOfSymbol(symbol);
@@ -14559,12 +14600,17 @@ namespace ts {
             globals[undefinedSymbol.name] = undefinedSymbol;
             // Initialize special types
             globalArrayType = <GenericType>getGlobalType("Array", /*arity*/ 2);     // RSC: changing arity: 1 --> 2
+            globalReadOnlyType = getGlobalType("ReadOnly");                         // RSC
             globalObjectType = getGlobalType("Object");
             globalFunctionType = getGlobalType("Function");
             globalStringType = getGlobalType("String");
             globalNumberType = getGlobalType("Number");
             globalBooleanType = getGlobalType("Boolean");
             globalRegExpType = getGlobalType("RegExp");
+            globalMutableType = getGlobalType("Mutable");
+            globalImmutableType = getGlobalType("Immutable");
+
+
             jsxElementType = getExportedTypeFromNamespace("JSX", JsxNames.Element);
             getGlobalClassDecoratorType = memoize(() => getGlobalType("ClassDecorator"));
             getGlobalPropertyDecoratorType = memoize(() => getGlobalType("PropertyDecorator"));
@@ -15215,7 +15261,7 @@ namespace ts {
             }
         }
 
-        function checkGrammarJsxElement(node: JsxOpeningElement|JsxSelfClosingElement) {
+        function checkGrammarJsxElement(node: JsxOpeningElement | JsxSelfClosingElement) {
             const seen: Map<boolean> = {};
             for (let attr of node.attributes) {
                 if (attr.kind === SyntaxKind.JsxSpreadAttribute) {

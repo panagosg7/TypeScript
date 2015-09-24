@@ -1038,7 +1038,7 @@ namespace ts {
     export interface TypeAliasDeclaration extends Declaration, Statement {
         name: Identifier;
         typeParameters?: NodeArray<TypeParameterDeclaration>;
-        type: TypeNode;
+        type: TypeNode;        
     }
 
     export interface EnumMember extends Declaration {
@@ -1439,7 +1439,6 @@ namespace ts {
         getShorthandAssignmentValueSymbol(location: Node): Symbol;
         getTypeAtLocation(node: Node): Type;
         typeToString(type: Type, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;
-        typeToRscString(type: Type, enclosingDeclaration: Node): string;    // RSC
         signatureToString(signature: Signature, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string;
         methodToRscString(signature: Signature, enclosingDeclaration: Node): string;  //RSC
         functionToRscString(signature: Signature, enclosingDeclaration: Node): string;  //RSC        

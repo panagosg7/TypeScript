@@ -385,7 +385,21 @@ module ts {
             return RsPrefixOpKind[this.opKind];
         }
 
-        constructor(public opKind: RsPrefixOpKind) { super(); }
+        private opKind: RsPrefixOpKind;
+
+        constructor(kind: SyntaxKind) {
+            super();
+            switch (kind) {
+                case SyntaxKind.MinusToken:
+                    this.opKind = RsPrefixOpKind.PrefixMinus;
+                    break;
+                case SyntaxKind.TypeOfExpression:
+                    this.opKind = RsPrefixOpKind.PrefixTypeof;
+                    break;
+                default:
+                    throw new Error("[refscript] unsupported prefix kind: " + SyntaxKind[kind]);
+            }
+        }
     }
 
 
@@ -805,10 +819,10 @@ module ts {
 
     export class RsClassStmt extends RsStatement {
         public serialize() {
-            return this._toAeson("ClassStmt", [this.id.serialize(), this.extendsClass.serialize(), this.implementsInterfaces.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
+            return this._toAeson("ClassStmt", [this.id.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
-        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public extendsClass: IRsMaybe<RsId>, public implementsInterfaces: RsList<RsId>, public body: RsList<RsClassElt>) {
+        constructor(public span: RsSrcSpan, public ann: Annotation[], public id: RsId, public body: RsList<RsClassElt>) {
             super(span, ann);
         }
     }
