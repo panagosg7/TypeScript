@@ -12674,10 +12674,14 @@ namespace ts {
             }
             
             // RSC checks on mutability
+            // Let some primitive types go through            
+            if (node.name && (indexOfEq([], getTextOfNode(node.name)) !== -1)) 
+                return;
+                
             if (node.typeParameters && node.typeParameters.length > 0) {
                 let firstTypeParamter = node.typeParameters[0];
                 // PV: this is not a very robust check...
-                if (firstTypeParamter.constraint && (indexOfEq(["ReadOnly", "Mutable", "Imuutable"], getTextOfNode(firstTypeParamter.constraint)) < 0)) {                    
+                if (firstTypeParamter.constraint && (indexOfEq(["ReadOnly", "Mutable", "Immutable"], getTextOfNode(firstTypeParamter.constraint)) < 0)) {                    
                     error(node, Diagnostics.The_first_type_parameter_of_class_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
                 }
             }
@@ -12906,6 +12910,12 @@ namespace ts {
             }            
                  
             // RSC checks on mutability
+            // Let some primitive types go through            
+            if (node.name && (indexOfEq(["Boolean", "Error", "Function", "Number", "NumberConstructor", "ErrorConstructor", "ReadOnly", 
+                "AssignsFields", "Immutable", "Mutable", "RegExp", "RegExpExecArray", "String", "StringConstructor", 
+                "Object", "IArguments"], getTextOfNode(node.name)) !== -1)) 
+                return;            
+            
             if (node.typeParameters && node.typeParameters.length > 0) {
                 let firstTypeParamter = node.typeParameters[0];
                 // PV: this is not a very robust check...
