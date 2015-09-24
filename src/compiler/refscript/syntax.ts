@@ -397,7 +397,7 @@ module ts {
                     this.opKind = RsPrefixOpKind.PrefixTypeof;
                     break;
                 default:
-                    throw new Error("[refscript] unsupported prefix kind: " + SyntaxKind[kind]);
+                    throw new Error("[refscript] unsupported prefix kind: " + kind);
             }
         }
     }

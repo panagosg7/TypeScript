@@ -250,7 +250,7 @@ namespace ts {
                     case SyntaxKind.PropertyAssignment:
                         return propertyAssignmentToRsAST(state, <PropertyAssignment>node);
                 }
-                throw new Error("UNIMPLEMENTED nodeToRsAST for " + SyntaxKind[node.kind]);
+                throw new Error("UNIMPLEMENTED nodeToRsAST for " + node.kind);
             }
 
             function accumulateGlobalAnnotations(node: Node) {
@@ -307,7 +307,7 @@ namespace ts {
                     case SyntaxKind.SuperKeyword:
                         return superKeywordToRsExp(state, node);                
                 }
-                throw new Error("UNIMPLEMENTED nodeToRsExp for " + SyntaxKind[node.kind]);
+                throw new Error("UNIMPLEMENTED nodeToRsExp for " + node.kind);
             }
 
             function nodeToRsLval(state: RsTranslationState, node: Expression): RsLValue {
@@ -317,7 +317,7 @@ namespace ts {
                     case SyntaxKind.PropertyAccessExpression:
                         return propertyAccessExpressionToRsLVal(state, <PropertyAccessExpression>node);
                 }
-                throw new Error("[refscript] Unimplemented nodeToRsLval for " + SyntaxKind[node.kind]);
+                throw new Error("[refscript] Unimplemented nodeToRsLval for " + node.kind);
             }
 
             function nodeToRsStmt(state: RsTranslationState, node: Statement): RsStatement {
@@ -344,7 +344,7 @@ namespace ts {
                         return classDeclarationToRsStmt(state, <ClassDeclaration>node);
                 }
 
-                throw new Error("[refscript] Unimplemented nodeToRsStmt for " + SyntaxKind[node.kind]);
+                throw new Error("[refscript] Unimplemented nodeToRsStmt for " + node.kind);
             }
             
             function nodeToRsClassElts(state: RsTranslationState, node: ClassElement): RsClassElt[] {
@@ -353,7 +353,7 @@ namespace ts {
                         return constructorDeclarationToRsClassElts(state, <ConstructorDeclaration>node);
                 
                 }
-                throw new Error("[refscript] Unimplemented nodeToRsClassElts for " + SyntaxKind[node.kind]);
+                throw new Error("[refscript] Unimplemented nodeToRsClassElts for " + node.kind);
             }
 
             /**
@@ -382,7 +382,7 @@ namespace ts {
                         return new RsId(nodeToSrcSpan(node), [], getTextOfNode((<ParameterDeclaration>node).name));
                 }
 
-                throw new Error("UNIMPLEMENTED nodeToRsId for " + SyntaxKind[node.kind]);
+                throw new Error("UNIMPLEMENTED nodeToRsId for " + node.kind);
             }
 
             // FunctionDeclaration
@@ -544,12 +544,13 @@ namespace ts {
                     case SyntaxKind.AmpersandAmpersandToken:
                     case SyntaxKind.BarBarToken:
                     case SyntaxKind.AsteriskToken:
+                    case SyntaxKind.InstanceOfKeyword:
                         return new RsInfixExpr(nodeToSrcSpan(node), [], new RsInfixOp(getTextOfNode(node.operatorToken)),
                             nodeToRsExp(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.EqualsToken:
                         return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp(getTextOfNode(node.operatorToken)), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));
                     default:
-                        throw new Error("[refscript] BinaryExpression toRsExp Expression for: " + SyntaxKind[node.operatorToken.kind]);
+                        throw new Error("[refscript] BinaryExpression toRsExp Expression for: " + node.operatorToken.kind);
                 }
             }
 

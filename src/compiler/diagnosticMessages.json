@@ -2598,6 +2598,10 @@
      "The first type parameter of class '{0}' needs to extend a mutability type.": {                        
          "category": "Error",
          "code": 10038
+     },
+     "The first type parameter of interface '{0}' needs to extend a mutability type.": {                        
+         "category": "Error",
+         "code": 10039
      }
      
  }

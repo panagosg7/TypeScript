@@ -376,8 +376,7 @@ namespace ts {
             }
 
             // RSC - report these later
-            // reportDiagnostics(diagnostics);
-
+            
             // If the user doesn't want us to emit, then we're done at this point.
             if (compilerOptions.noEmit) {
                 return diagnostics.length
@@ -385,44 +384,40 @@ namespace ts {
                     : ExitStatus.Success;
             }
 
-
-            // RSC - disabling regular emit process
-            //
-            // // Otherwise, emit and report any errors we ran into.
-            // let emitOutput = program.emit();
-            //
-            // reportDiagnostics(emitOutput.diagnostics);
-            //
-            // // If the emitter didn't emit anything, then pass that value along.
-            // if (emitOutput.emitSkipped) {
-            //     return ExitStatus.DiagnosticsPresent_OutputsSkipped;
-            // }
-            //
-            // // The emitter emitted something, inform the caller if that happened in the presence
-            // // of diagnostics or not.
-            // if (diagnostics.length > 0 || emitOutput.diagnostics.length > 0) {
-            //     return ExitStatus.DiagnosticsPresent_OutputsGenerated;
-            // }
-            //
-            // return ExitStatus.Success;
-
-            // RSC - begin
-            
-            if (diagnostics.length > 0) {
-                dumpRefScriptDiagnostics(diagnostics, []);
-                // the exit status should be redundant
-                return ExitStatus.DiagnosticsPresent_OutputsSkipped;
+            if (compilerOptions.refscript) {
+                
+                if (diagnostics.length > 0) {
+                    dumpRefScriptDiagnostics(diagnostics, []);
+                    // the exit status should be redundant
+                    return ExitStatus.DiagnosticsPresent_OutputsSkipped;
+                }
+                try {
+                    let rscOutput = program.toRsc();
+                    dumpRefScriptDiagnostics(rscOutput.diagnostics, rscOutput.jsonFiles);
+                    return ExitStatus.Success;
+                } catch (e) {
+                    dumpRefScriptUnknownError(e.stack);
+                    throw e;
+                }
             }
+            else {
+                reportDiagnostics(diagnostics);
+                                
+                // Otherwise, emit and report any errors we ran into.
+                let emitOutput = program.emit();
 
-            try {
-                let rscOutput = program.toRsc();
-                dumpRefScriptDiagnostics(rscOutput.diagnostics, rscOutput.jsonFiles);
+                // If the emitter didn't emit anything, then pass that value along.
+                if (emitOutput.emitSkipped) {
+                    return ExitStatus.DiagnosticsPresent_OutputsSkipped;
+                }
+            
+                // The emitter emitted something, inform the caller if that happened in the presence
+                // of diagnostics or not.
+                if (diagnostics.length > 0 || emitOutput.diagnostics.length > 0) {
+                    return ExitStatus.DiagnosticsPresent_OutputsGenerated;
+                }
                 return ExitStatus.Success;
-            } catch (e) {
-               dumpRefScriptUnknownError(e.stack);
-               throw e;
-           }
-            // RSC - end
+            }
         }
 
         // RSC - begin
@@ -566,8 +561,8 @@ namespace ts {
 
         return;
 
-        function serializeCompilerOptions(options: CompilerOptions): Map<string|number|boolean> {
-            let result: Map<string|number|boolean> = {};
+        function serializeCompilerOptions(options: CompilerOptions): Map<string | number | boolean> {
+            let result: Map<string | number | boolean> = {};
             let optionsNameMap = getOptionNameMap().optionNameMap;
 
             for (let name in options) {

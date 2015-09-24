@@ -114,7 +114,11 @@ namespace ts {
             name: "noLib",
             type: "boolean",
         },
-        // RSC option
+        // RSC options
+        {
+            name: "refscript",
+            type: "boolean",
+        },
         {
             name: "lib",
             type: "string",

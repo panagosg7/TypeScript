@@ -220,7 +220,7 @@ var compilerFilename = "tsc.js";
     */
 function compileFile(outFile, sources, prereqs, prefixes, useBuiltCompiler, noOutFile, generateDeclarations, outDir, preserveConstEnums, keepComments, noResolve, stripInternal, callback) {
     file(outFile, prereqs, function() {
-        var dir = useBuiltCompiler ? builtLocalDirectory : LKGDirectory;
+        var dir = LKGDirectory; // useBuiltCompiler ? builtLocalDirectory : LKGDirectory; // PV - never use built compiler
         var options = "--module commonjs --noImplicitAny --noEmitOnError";
 
         // Keep comments when specifically requested

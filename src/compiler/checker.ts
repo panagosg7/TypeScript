@@ -12899,7 +12899,20 @@ namespace ts {
 
             if (produceDiagnostics) {
                 checkTypeForDuplicateIndexSignatures(node);
+            }            
+                 
+            // RSC checks on mutability
+            if (node.typeParameters && node.typeParameters.length > 0) {
+                let firstTypeParamter = node.typeParameters[0];
+                // PV: this is not a very robust check...
+                if (firstTypeParamter.constraint && (indexOfEq(["ReadOnly", "Mutable", "Imuutable"], getTextOfNode(firstTypeParamter.constraint)) < 0)) {                    
+                    error(node, Diagnostics.The_first_type_parameter_of_interface_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
+                }
             }
+            else {
+                error(node, Diagnostics.The_first_type_parameter_of_interface_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
+            }
+            
         }
 
         function checkTypeAliasDeclaration(node: TypeAliasDeclaration) {
