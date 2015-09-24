@@ -102,3 +102,5 @@ After that `tsc` (using tsconfig.json) should work. Same with Atom's build keybi
 
 To regenerate diagnostics: `jake generate-diagnostics`
 
+Initialize const `preludePath` in `src/compiler/program.ts` necessarily. (TODO: move prelude.d.ts over to this project)
+

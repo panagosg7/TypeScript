@@ -21,7 +21,11 @@ namespace ts {
         return symbol.id;
     }
 
-    export function createTypeChecker(host: TypeCheckerHost, produceDiagnostics: boolean, refscript = false): TypeChecker {
+    export function createTypeChecker(host: TypeCheckerHost, produceDiagnostics: boolean): TypeChecker {
+        
+        // RSC
+        let refscript = true; // !host.getCompilerOptions().refscript;
+        
         // Cancellation that controls whether or not we can cancel in the middle of type checking.
         // In general cancelling is *not* safe for the type checker.  We might be in the middle of
         // computing something, and we will leave our internals in an inconsistent state.  Callers

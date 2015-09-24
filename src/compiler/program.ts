@@ -3,6 +3,11 @@
 /// <reference path="core.ts" />
 
 namespace ts {
+    
+    // REFSCRIPT 
+    export const preludePath = "/home/pvekris/Documents/Research/rsc/RefScript/include/prelude.d.ts";
+    
+    
     /* @internal */ export let programTime = 0;
     /* @internal */ export let emitTime = 0;
     /* @internal */ export let ioReadTime = 0;
@@ -233,7 +238,8 @@ namespace ts {
         outDir: "built",
         rootDir: ".",
         sourceMap: false,
-        lib: combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), "lib.d.ts")
+        lib: preludePath
+        //lib: combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), "lib.d.ts")
     };
 
     export function createCompilerHost(options: CompilerOptions, setParentNodes?: boolean): CompilerHost {
@@ -308,11 +314,10 @@ namespace ts {
             getSourceFile,
             getDefaultLibFileName: options => {
                 if (options.lib) {
-                    // console.log("lib was provided: " + options.lib)
-                    // console.log("dir path: " + normalizePath(sys.getCurrentDirectory()));
                     return combinePaths(normalizePath(sys.getCurrentDirectory()), options.lib);
-                }
-                return combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), getDefaultLibFileName(options))
+                }                
+                return preludePath; // RSC                               
+                //return combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), getDefaultLibFileName(options))
             },
             writeFile,
             getCurrentDirectory: () => currentDirectory || (currentDirectory = sys.getCurrentDirectory()),
@@ -546,11 +551,11 @@ namespace ts {
         }
 
         function getDiagnosticsProducingTypeChecker() {
-            return diagnosticsProducingTypeChecker || (diagnosticsProducingTypeChecker = createTypeChecker(program, /*produceDiagnostics:*/ true, /* RSC */ true));
+            return diagnosticsProducingTypeChecker || (diagnosticsProducingTypeChecker = createTypeChecker(program, /*produceDiagnostics:*/ true));
         }
 
         function getTypeChecker() {
-            return noDiagnosticsTypeChecker || (noDiagnosticsTypeChecker = createTypeChecker(program, /*produceDiagnostics:*/ false, /* RSC */ true ));
+            return noDiagnosticsTypeChecker || (noDiagnosticsTypeChecker = createTypeChecker(program, /*produceDiagnostics:*/ false));
         }
 
         function emit(sourceFile?: SourceFile, writeFileCallback?: WriteFileCallback, cancellationToken?: CancellationToken): EmitResult {

@@ -1,7 +1,8 @@
 /// <reference path="program.ts"/>
 /// <reference path="commandLineParser.ts"/>
 
-namespace ts {
+namespace ts {    
+    
     export interface SourceFile {
         fileWatcher?: FileWatcher;
     }
@@ -385,7 +386,7 @@ namespace ts {
             }
 
             if (compilerOptions.refscript) {
-                
+
                 if (diagnostics.length > 0) {
                     dumpRefScriptDiagnostics(diagnostics, []);
                     // the exit status should be redundant
@@ -399,8 +400,10 @@ namespace ts {
                     dumpRefScriptUnknownError(e.stack);
                     throw e;
                 }
+
             }
             else {
+
                 reportDiagnostics(diagnostics);
                                 
                 // Otherwise, emit and report any errors we ran into.
