@@ -2602,6 +2602,10 @@
      "The first type parameter of interface '{0}' needs to extend a mutability type.": {                        
          "category": "Error",
          "code": 10039
+     },
+     "[refscript] Class declaration needs to contain a constructor.": {                        
+         "category": "Error",
+         "code": 10040
      }
      
  }

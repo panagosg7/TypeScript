@@ -74,6 +74,12 @@ module ts {
             super(sourceSpan, AnnotationKind.ConstructorRawSpec, content);
         }
     }
+    
+    export class MethodDeclarationAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.MethodRawSpec, content);
+        }
+    }
 
     export class TypeSignatureAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
@@ -127,13 +133,7 @@ module ts {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.FieldRawSpec, content);
         }
-    }
-
-    export class MethodAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.MethodRawSpec, content);
-        }
-    }
+    }    
 
     export class CallAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
@@ -231,19 +231,19 @@ module ts {
 
     export function makeConstructorAnnotations(s: string, srcSpan: RsSrcSpan): ConstructorDeclarationAnnotation[] {
         let tokens = stringTokens(s);
-        if (!tokens || tokens[0] !== "constructor")
+        if (!tokens || tokens[0] !== "new")
             throw new Error("[refscript] Invalid constructor annotation: " + s);
         return [new ConstructorDeclarationAnnotation(srcSpan, s)];
     }
 
-    export function makeMethodAnnotations(s: string, srcSpan: RsSrcSpan): MethodAnnotation[] {
+    export function makeMethodDeclarationAnnotations(s: string, srcSpan: RsSrcSpan): MethodDeclarationAnnotation[] {
         let tokens = stringTokens(s);
         if (isReservedAnnotationPrefix(tokens[0]))
             throw new Error("[refscript] Invalid method annotation: " + s);
-        return [new MethodAnnotation(srcSpan, s)];
+        return [new MethodDeclarationAnnotation(srcSpan, s)];
     }
 
-    export function makePropertyAnnotations(s: string, srcSpan: RsSrcSpan): MethodAnnotation[] {
+    export function makePropertyAnnotations(s: string, srcSpan: RsSrcSpan): PropertyAnnotation[] {
         let tokens = stringTokens(s);
         if (isReservedAnnotationPrefix(tokens[0]))
             throw new Error("[refscript] Invalid property annotation: " + s);

@@ -652,5 +652,6 @@ namespace ts {
         RefScript_does_not_support_the_cast_Colon_0: { code: 10037, category: DiagnosticCategory.Unimplemented, key: "RefScript does not support the cast: '{0}'." },
         The_first_type_parameter_of_class_0_needs_to_extend_a_mutability_type: { code: 10038, category: DiagnosticCategory.Error, key: "The first type parameter of class '{0}' needs to extend a mutability type." },
         The_first_type_parameter_of_interface_0_needs_to_extend_a_mutability_type: { code: 10039, category: DiagnosticCategory.Error, key: "The first type parameter of interface '{0}' needs to extend a mutability type." },
+        refscript_Class_declaration_needs_to_contain_a_constructor: { code: 10040, category: DiagnosticCategory.Error, key: "[refscript] Class declaration needs to contain a constructor." },
     };
 }

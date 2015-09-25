@@ -250,7 +250,7 @@ namespace ts {
                     case SyntaxKind.PropertyAssignment:
                         return propertyAssignmentToRsAST(state, <PropertyAssignment>node);
                 }
-                throw new Error("UNIMPLEMENTED nodeToRsAST for " + node.kind);
+                throw new Error("UNIMPLEMENTED nodeToRsAST for " + SyntaxKind[node.kind]);
             }
 
             function accumulateGlobalAnnotations(node: Node) {
@@ -305,9 +305,9 @@ namespace ts {
                     case SyntaxKind.ObjectLiteralExpression:
                         return objectLiteralExpressionToRsExp(state, <ObjectLiteralExpression>node);
                     case SyntaxKind.SuperKeyword:
-                        return superKeywordToRsExp(state, node);                
+                        return superKeywordToRsExp(state, node);
                 }
-                throw new Error("UNIMPLEMENTED nodeToRsExp for " + node.kind);
+                throw new Error("UNIMPLEMENTED nodeToRsExp for " + SyntaxKind[node.kind]);
             }
 
             function nodeToRsLval(state: RsTranslationState, node: Expression): RsLValue {
@@ -317,7 +317,7 @@ namespace ts {
                     case SyntaxKind.PropertyAccessExpression:
                         return propertyAccessExpressionToRsLVal(state, <PropertyAccessExpression>node);
                 }
-                throw new Error("[refscript] Unimplemented nodeToRsLval for " + node.kind);
+                throw new Error("[refscript] Unimplemented nodeToRsLval for " + SyntaxKind[node.kind]);
             }
 
             function nodeToRsStmt(state: RsTranslationState, node: Statement): RsStatement {
@@ -344,16 +344,17 @@ namespace ts {
                         return classDeclarationToRsStmt(state, <ClassDeclaration>node);
                 }
 
-                throw new Error("[refscript] Unimplemented nodeToRsStmt for " + node.kind);
+                throw new Error("[refscript] Unimplemented nodeToRsStmt for " + SyntaxKind[node.kind]);
             }
-            
+
             function nodeToRsClassElts(state: RsTranslationState, node: ClassElement): RsClassElt[] {
                 switch (node.kind) {
                     case SyntaxKind.Constructor:
                         return constructorDeclarationToRsClassElts(state, <ConstructorDeclaration>node);
-                
+                    case SyntaxKind.MethodDeclaration:
+                        return methodDeclarationToRsClassElts(state, <MethodDeclaration>node);
                 }
-                throw new Error("[refscript] Unimplemented nodeToRsClassElts for " + node.kind);
+                throw new Error("[refscript] Unimplemented nodeToRsClassElts for " + SyntaxKind[node.kind]);
             }
 
             /**
@@ -382,7 +383,7 @@ namespace ts {
                         return new RsId(nodeToSrcSpan(node), [], getTextOfNode((<ParameterDeclaration>node).name));
                 }
 
-                throw new Error("UNIMPLEMENTED nodeToRsId for " + node.kind);
+                throw new Error("UNIMPLEMENTED nodeToRsId for " + SyntaxKind[node.kind]);
             }
 
             // FunctionDeclaration
@@ -504,7 +505,7 @@ namespace ts {
             
             // type assertion expression
             function typeAssertionExpressionToRsExp(state: RsTranslationState, node: TypeAssertion): RsCast {
-                let type = checker.getTypeAtLocation(node.type);                
+                let type = checker.getTypeAtLocation(node.type);
                 let annotation = new CastAnnotation(nodeToSrcSpan(node.type), checker.typeToString(type, node.type));
                 return new RsCast(nodeToSrcSpan(node), [annotation], nodeToRsExp(state, node.expression));
             }
@@ -631,8 +632,8 @@ namespace ts {
             function returnStatementToRsStmt(state: RsTranslationState, node: ReturnStatement): RsReturnStmt {
                 return new RsReturnStmt(nodeToSrcSpan(node), [], (node.expression) ? new RsJust(nodeToRsExp(state, node.expression)) : new RsNothing());
             }
-            
-            function typeParametersToString(typeParameters: NodeArray<TypeParameterDeclaration>): string {                
+
+            function typeParametersToString(typeParameters: NodeArray<TypeParameterDeclaration>): string {
                 if (typeParameters && typeParameters.length > 0) {
                     return angles(typeParameters.map(typeParameter => {
                         let s = getTextOfNode(typeParameter.name);
@@ -646,23 +647,23 @@ namespace ts {
                 return "";
             }
 
-            function heritageClausesToString(heritageClauses: NodeArray<HeritageClause>): string {                
+            function heritageClausesToString(heritageClauses: NodeArray<HeritageClause>): string {
                 if (heritageClauses && heritageClauses.length > 0) {
-                    return concat(heritageClauses.map(heritageClause => {                            
+                    return concat(heritageClauses.map(heritageClause => {
                         switch (heritageClause.token) {
                             case SyntaxKind.ExtendsKeyword:
                                 if (heritageClause.types && heritageClause.types.length > 0) {
                                     return ["extends", heritageClause.types.map(type => checker.typeToString(checker.getTypeAtLocation(type))).join(", ")];
                                 }
-                                break;                            
+                                break;
                             case SyntaxKind.ImplementsKeyword:
                                 if (heritageClause.types && heritageClause.types.length > 0) {
                                     return ["implements", heritageClause.types.map(type => checker.typeToString(checker.getTypeAtLocation(type))).join(", ")];
                                 }
                                 break;
                         }
-                        return [];               
-                    })).join(" ");       
+                        return [];
+                    })).join(" ");
                 }
                 return "";
             }
@@ -679,8 +680,8 @@ namespace ts {
                 }
                 else {
                     let nameText = getTextOfNode(node.name);
-                    let typeParametersText = typeParametersToString(node.typeParameters);                                        
-                    let heritageText = heritageClausesToString(node.heritageClauses);                    
+                    let typeParametersText = typeParametersToString(node.typeParameters);
+                    let heritageText = heritageClausesToString(node.heritageClauses);
                     typeSignatureText = ["interface", nameText, typeParametersText, heritageText].join(" ");
                 }
 
@@ -698,7 +699,7 @@ namespace ts {
                                     return ["new " + checker.methodToRscString(constructorSignature, member)];
                                 }
                             case SyntaxKind.MethodSignature:
-                                let methodAnnotations = nodeAnnotations(<MethodDeclaration>member, makeMethodAnnotations);
+                                let methodAnnotations = nodeAnnotations(<MethodDeclaration>member, makeMethodDeclarationAnnotations);
                                 if (methodAnnotations.length > 0) {
                                     return [methodAnnotations[0].content];
                                 }
@@ -726,7 +727,7 @@ namespace ts {
                                     return [checker.methodToRscString(callSignature, member)];
                                 }
                             case SyntaxKind.IndexSignature:
-                                // TODO 
+                            // TODO 
                             default:
                                 return [];
                         }
@@ -760,21 +761,21 @@ namespace ts {
             
             // class declaration
             function classDeclarationToRsStmt(state: RsTranslationState, node: ClassDeclaration): RsClassStmt {
-                let annotations = nodeAnnotations(node, makeClassStatementAnnotations); 
-                if (annotations.length < 1) {                    
+                let annotations = nodeAnnotations(node, makeClassStatementAnnotations);
+                if (annotations.length < 1) {
                     let nameText = getTextOfNode(node.name);
                     let typeParametersText = typeParametersToString(node.typeParameters);
                     let heritageText = heritageClausesToString(node.heritageClauses);
-                    let annotationText = ["class", nameText, typeParametersText, heritageText].join(" ");                                        
-                    annotations = concatenate(annotations, [new ClassAnnotation(nodeToSrcSpan(node), annotationText)]);                    
+                    let annotationText = ["class", nameText, typeParametersText, heritageText].join(" ");
+                    annotations = concatenate(annotations, [new ClassAnnotation(nodeToSrcSpan(node), annotationText)]);
                 }
                 
                 // Add the 'exported' annotation
                 if (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
                     annotations = concatenate(annotations, [new ExportedAnnotation(nodeToSrcSpan(node))]);
-                }                
-                return new RsClassStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name), 
-                    new RsList(concat(node.members.map(n => nodeToRsClassElts(state, n)))));            
+                }
+                return new RsClassStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
+                    new RsList(concat(node.members.map(n => nodeToRsClassElts(state, n)))));
             }
             
             // constructor declaration
@@ -785,28 +786,34 @@ namespace ts {
                     // Ignore the overload - it will be included in the function body type
                     return [];
                 }
-                
+
                 node.parameters.forEach(parameter => {
                     if (parameter.initializer) {
                         state.postDiagnostic(node, Diagnostics.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [getTextOfNode(parameter)]);
                     }
                 });
-                            
+
+                /* 
+                    PV: There was something weird with getting the actual type signarure 
+                    from the constructor declaration, so instead we're getting the 
+                    type from the containing class.                    
+                */
                 let containingClass = getContainingClass(node);
-                let constructorSignatureInfo = containingClass.members.map(member => {
+                let constructorSignatureInfo = concat(containingClass.members.map(member => {
                     if (member.kind === SyntaxKind.Constructor) {
                         let constructorDeclaration = <ConstructorDeclaration>member;
                         let signature = checker.getSignatureFromDeclaration(constructorDeclaration);
-                        return {
+                        return [{
                             ambient: !(constructorDeclaration.body),
                             signature: signature
-                        }
-                    }                                       
-                });
-                
-                let constructorSignatures = (constructorSignatureInfo.some(i => i.ambient))?
-                    (constructorSignatureInfo.filter(i => i.ambient).map(i => i.signature)):
-                    (constructorSignatureInfo.map(i => i.signature));                
+                        }]
+                    }
+                    return [];  // skip other cases                               
+                }));
+
+                let constructorSignatures = (constructorSignatureInfo.some(i => i.ambient)) ?
+                    (constructorSignatureInfo.filter(i => i.ambient).map(i => i.signature)) :
+                    (constructorSignatureInfo.map(i => i.signature));
 
                 let constructorDeclarationAnnotations = concat(constructorSignatures.map(signature => {
                     let signatureDeclaration = signature.declaration;
@@ -814,12 +821,46 @@ namespace ts {
                     // these are binder annotations
                     let binderAnnotations = nodeAnnotations(signatureDeclaration, makeConstructorAnnotations);
                     return (binderAnnotations.length === 0) ?
-                        [new ConstructorDeclarationAnnotation(sourceSpan, "constructor :: " + checker.methodToRscString(signature, signatureDeclaration))] :
-                        binderAnnotations;                    
+                        [new ConstructorDeclarationAnnotation(sourceSpan, "new " + checker.methodToRscString(signature, signatureDeclaration))] :
+                        binderAnnotations;
+                }));
+
+                return [new RsConstructor(nodeToSrcSpan(node), constructorDeclarationAnnotations, nodeArrayToRsAST(state, node.parameters, nodeToRsId),
+                    nodeArrayToRsAST(state, <NodeArray<Statement>>[] /*node.body.statements */, nodeToRsStmt))];
+            }
+            
+            
+            // method declaration
+            function methodDeclarationToRsClassElts(state: RsTranslationState, node: MethodDeclaration): RsMemberMethDecl[] {
+                // Do this only once for the constructor body     
+                let isAmbient = !!(node.flags & NodeFlags.Ambient);
+                if (!node.body && !isAmbient) {
+                    // Ignore the overload - it will be included in the function body type
+                    return [];
+                }
+
+                let nameText = getTextOfNode(node.name);
+                let type = checker.getTypeAtLocation(node);
+                let signatures = checker.getSignaturesOfType(type, SignatureKind.Call);                
+
+                let methodDeclarationAnnotations = concat(signatures.map(signature => {
+                    let signatureDeclaration = signature.declaration;
+                    let sourceSpan = nodeToSrcSpan(signatureDeclaration);
+                    // these are binder annotations
+                    let binderAnnotations = nodeAnnotations(signatureDeclaration, makeMethodDeclarationAnnotations);
+                    if (binderAnnotations.length === 0) {
+                        // No signature annotation on this declaration -> use the one TS infers
+                        return [new MethodDeclarationAnnotation(sourceSpan, nameText + checker.methodToRscString(signature, signatureDeclaration))];
+                    }
+                    else {
+                        return binderAnnotations;
+                    }
                 }));
                 
-                return [new RsConstructor(nodeToSrcSpan(node), constructorDeclarationAnnotations, nodeArrayToRsAST(state, node.parameters, nodeToRsId), 
-                    nodeArrayToRsAST(state, <NodeArray<Statement>>[] /*node.body.statements */, nodeToRsStmt))];
+                let static = !!(node.flags & NodeFlags.Static);
+                
+                return [new RsMemberMethDecl(nodeToSrcSpan(node), methodDeclarationAnnotations, static, new RsId(nodeToSrcSpan(node.name), [], nameText), 
+                    nodeArrayToRsAST(state, node.parameters, nodeToRsId), new RsList(node.body.statements.map(statement => nodeToRsStmt(state, statement))))];
             }
 
 

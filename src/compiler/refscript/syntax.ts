@@ -698,9 +698,9 @@ module ts {
         }
     }
 
-    export class RsMemberMethDef extends RsClassElt {
+    export class RsMemberMethDecl extends RsClassElt {
         public serialize(): any {
-            return this._toAeson("MemberMethDef", [this.sta, this.name.serialize(), this.args.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
+            return this._toAeson("MemberMethDecl", [this.sta, this.name.serialize(), this.args.serialize(), this.body.serialize()], AesonCtor.WITH_CTOR);
         }
 
         constructor(public span: RsSrcSpan, public ann: Annotation[], public sta: boolean, public name: RsId, public args: RsList<RsId>, public body: RsList<RsStatement>) {
@@ -708,17 +708,7 @@ module ts {
         }
     }
 
-    export class RsMemberMethDecl extends RsClassElt {
-        public serialize(): any {
-            return this._toAeson("MemberMethDecl", [this.sta, this.name.serialize(), this.args.serialize()], AesonCtor.WITH_CTOR);
-        }
-
-        constructor(public span: RsSrcSpan, public ann: Annotation[], public sta: boolean, public name: RsId, public args: RsList<RsId>) {
-            super(span, ann);
-        }
-    }
-
-
+    
     //// Statement
 
     export class RsStatement extends RsAnnotatedAST {

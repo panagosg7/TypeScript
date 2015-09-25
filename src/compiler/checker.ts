@@ -12596,6 +12596,11 @@ namespace ts {
             }
 
             forEach(node.members, checkSourceElement);
+            
+            
+            if (!node.members.some(member => member && (member.kind === SyntaxKind.Constructor))) {
+                error(node, Diagnostics.refscript_Class_declaration_needs_to_contain_a_constructor);
+            }            
         }
 
         function checkClassLikeDeclaration(node: ClassLikeDeclaration) {
