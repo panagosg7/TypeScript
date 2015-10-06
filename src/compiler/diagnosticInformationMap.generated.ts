@@ -650,8 +650,11 @@ namespace ts {
         Constructor_parent_has_not_been_set: { code: 10035, category: DiagnosticCategory.Bug, key: "Constructor parent has not been set." },
         Invalid_enumeration_entry_for_0: { code: 10036, category: DiagnosticCategory.Unimplemented, key: "Invalid enumeration entry for '{0}'." },
         RefScript_does_not_support_the_cast_Colon_0: { code: 10037, category: DiagnosticCategory.Unimplemented, key: "RefScript does not support the cast: '{0}'." },
-        The_first_type_parameter_of_class_0_needs_to_extend_a_mutability_type: { code: 10038, category: DiagnosticCategory.Error, key: "The first type parameter of class '{0}' needs to extend a mutability type." },
-        The_first_type_parameter_of_interface_0_needs_to_extend_a_mutability_type: { code: 10039, category: DiagnosticCategory.Error, key: "The first type parameter of interface '{0}' needs to extend a mutability type." },
+        The_first_type_parameter_of_named_type_0_needs_to_extend_a_mutability_type: { code: 10038, category: DiagnosticCategory.Error, key: "The first type parameter of named type '{0}' needs to extend a mutability type." },
         refscript_Class_declaration_needs_to_contain_a_constructor: { code: 10040, category: DiagnosticCategory.Error, key: "[refscript] Class declaration needs to contain a constructor." },
+        refscript_Only_support_ModuleBlocks_inside_a_Module_s_body: { code: 10041, category: DiagnosticCategory.Unimplemented, key: "[refscript] Only support ModuleBlocks inside a Module's body." },
+        refscript_0_SyntaxKind_1_not_supported_yet: { code: 10042, category: DiagnosticCategory.Unimplemented, key: "[refscript - {0}] SyntaxKind '{1}' not supported yet." },
+        Specify_use_of_refscript_Colon_editor_or_cmdline: { code: 10043, category: DiagnosticCategory.Message, key: "Specify use of refscript: 'editor' or 'cmdline'" },
+        Argument_for_refscript_option_must_be_editor_or_cmdline: { code: 10044, category: DiagnosticCategory.Error, key: "Argument for '--refscript' option must be 'editor' or 'cmdline'." },
     };
 }

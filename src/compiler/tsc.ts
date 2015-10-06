@@ -361,6 +361,7 @@ namespace ts {
         return { program, exitStatus };
 
         function compileProgram(): ExitStatus {
+            
             let diagnostics: Diagnostic[];
 
             // First get and report any syntactic errors.
@@ -374,9 +375,8 @@ namespace ts {
                 if (diagnostics.length === 0) {
                     diagnostics = program.getSemanticDiagnostics();
                 }
+                
             }
-
-            // RSC - report these later
             
             // If the user doesn't want us to emit, then we're done at this point.
             if (compilerOptions.noEmit) {
@@ -386,7 +386,7 @@ namespace ts {
             }
 
             if (compilerOptions.refscript) {
-
+                // Terminal mode
                 if (diagnostics.length > 0) {
                     dumpRefScriptDiagnostics(diagnostics, []);
                     // the exit status should be redundant
@@ -403,16 +403,17 @@ namespace ts {
 
             }
             else {
-
-                reportDiagnostics(diagnostics);
-                                
+                // Editor mode
+                diagnostics = concatenate(diagnostics, program.toRsc().diagnostics);                
+                
+                reportDiagnostics(diagnostics);                                
                 // Otherwise, emit and report any errors we ran into.
                 let emitOutput = program.emit();
 
                 // If the emitter didn't emit anything, then pass that value along.
                 if (emitOutput.emitSkipped) {
                     return ExitStatus.DiagnosticsPresent_OutputsSkipped;
-                }
+                }                
             
                 // The emitter emitted something, inform the caller if that happened in the presence
                 // of diagnostics or not.

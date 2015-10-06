@@ -2595,17 +2595,29 @@
          "category": "Unimplemented",
          "code": 10037
      },
-     "The first type parameter of class '{0}' needs to extend a mutability type.": {                        
+     "The first type parameter of named type '{0}' needs to extend a mutability type.": {                        
          "category": "Error",
          "code": 10038
-     },
-     "The first type parameter of interface '{0}' needs to extend a mutability type.": {                        
-         "category": "Error",
-         "code": 10039
      },
      "[refscript] Class declaration needs to contain a constructor.": {                        
          "category": "Error",
          "code": 10040
+     },
+     "[refscript] Only support ModuleBlocks inside a Module's body.": {                        
+         "category": "Unimplemented",
+         "code": 10041
+     },
+     "[refscript - {0}] SyntaxKind '{1}' not supported yet.": {                        
+         "category": "Unimplemented",
+         "code": 10042
+     },
+     "Specify use of refscript: 'editor' or 'cmdline'": {
+         "category": "Message",
+         "code": 10043
+     },
+     "Argument for '--refscript' option must be 'editor' or 'cmdline'.": {
+         "category": "Error",
+         "code": 10044
      }
-     
+
  }

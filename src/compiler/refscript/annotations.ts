@@ -129,12 +129,6 @@ module ts {
         }
     }
 
-    export class FieldAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.FieldRawSpec, content);
-        }
-    }    
-
     export class CallAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.CallRawSpec, content);

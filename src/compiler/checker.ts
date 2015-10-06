@@ -26,6 +26,9 @@ namespace ts {
         // RSC
         let refscript = true; // !host.getCompilerOptions().refscript;
         
+        // console.log(host.getCompilerOptions().refscript);
+        
+        
         // Cancellation that controls whether or not we can cancel in the middle of type checking.
         // In general cancelling is *not* safe for the type checker.  We might be in the middle of
         // computing something, and we will leave our internals in an inconsistent state.  Callers
@@ -10137,6 +10140,7 @@ namespace ts {
         // have the wildcard function type; this form of type check is used during overload resolution to exclude
         // contextually typed function and arrow expressions in the initial phase.
         function checkExpression(node: Expression | QualifiedName, contextualMapper?: TypeMapper): Type {
+            
             let type: Type;
             if (node.kind === SyntaxKind.QualifiedName) {
                 type = checkQualifiedName(<QualifiedName>node);
@@ -12596,11 +12600,12 @@ namespace ts {
             }
 
             forEach(node.members, checkSourceElement);
-            
-            
+
+
             if (!node.members.some(member => member && (member.kind === SyntaxKind.Constructor))) {
                 error(node, Diagnostics.refscript_Class_declaration_needs_to_contain_a_constructor);
-            }            
+            }
+
         }
 
         function checkClassLikeDeclaration(node: ClassLikeDeclaration) {
@@ -12679,20 +12684,7 @@ namespace ts {
             }
             
             // RSC checks on mutability
-            // Let some primitive types go through            
-            if (node.name && (indexOfEq([], getTextOfNode(node.name)) !== -1)) 
-                return;
-                
-            if (node.typeParameters && node.typeParameters.length > 0) {
-                let firstTypeParamter = node.typeParameters[0];
-                // PV: this is not a very robust check...
-                if (firstTypeParamter.constraint && (indexOfEq(["ReadOnly", "Mutable", "Immutable"], getTextOfNode(firstTypeParamter.constraint)) < 0)) {                    
-                    error(node, Diagnostics.The_first_type_parameter_of_class_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
-                }
-            }
-            else {
-                error(node, Diagnostics.The_first_type_parameter_of_class_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
-            }
+            checkMutabilityTypeParameter(node);
 
         }
 
@@ -12913,26 +12905,38 @@ namespace ts {
             if (produceDiagnostics) {
                 checkTypeForDuplicateIndexSignatures(node);
             }            
-                 
-            // RSC checks on mutability
-            // Let some primitive types go through            
-            if (node.name && (indexOfEq(["Boolean", "Error", "Function", "Number", "NumberConstructor", "ErrorConstructor", "ReadOnly", 
-                "AssignsFields", "Immutable", "Mutable", "RegExp", "RegExpExecArray", "String", "StringConstructor", 
-                "Object", "IArguments"], getTextOfNode(node.name)) !== -1)) 
-                return;            
             
+            // RSC   
+            checkMutabilityTypeParameter(node);
+
+        }
+        
+        // RSC checks on mutability            
+        function checkMutabilityTypeParameter(node: ClassLikeDeclaration | InterfaceDeclaration) {              
+            // Let some primitive types go through            
+            if (node.name && (indexOfEq(["Boolean", "Error", "Function", "Number", "NumberConstructor", "ErrorConstructor", "ReadOnly",
+                "AssignsFields", "Immutable", "Mutable", "RegExp", "RegExpExecArray", "String", "StringConstructor",
+                "Object", "IArguments"], getTextOfNode(node.name)) !== -1))
+                return;
+
             if (node.typeParameters && node.typeParameters.length > 0) {
                 let firstTypeParamter = node.typeParameters[0];
                 // PV: this is not a very robust check...
-                if (firstTypeParamter.constraint && (indexOfEq(["ReadOnly", "Mutable", "Imuutable"], getTextOfNode(firstTypeParamter.constraint)) < 0)) {                    
-                    error(node, Diagnostics.The_first_type_parameter_of_interface_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
+                if (firstTypeParamter.constraint) {
+                    if (indexOfEq(["ReadOnly", "Mutable", "Imuutable"], getTextOfNode(firstTypeParamter.constraint)) < 0) {
+                        error(node, Diagnostics.The_first_type_parameter_of_named_type_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
+                    }
+                }
+                else {
+                    error(node, Diagnostics.The_first_type_parameter_of_named_type_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
                 }
             }
             else {
-                error(node, Diagnostics.The_first_type_parameter_of_interface_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
+                error(node, Diagnostics.The_first_type_parameter_of_named_type_0_needs_to_extend_a_mutability_type, [getTextOfNode(node.name)]);
             }
-            
+
         }
+
 
         function checkTypeAliasDeclaration(node: TypeAliasDeclaration) {
             // Grammar checking
@@ -13267,6 +13271,12 @@ namespace ts {
                     }
                 }
             }
+            
+            // RSC
+            if (node.body.kind !== SyntaxKind.ModuleBlock) {
+                error(node.body, Diagnostics.refscript_Only_support_ModuleBlocks_inside_a_Module_s_body);
+            }
+
             checkSourceElement(node.body);
         }
 
@@ -13516,7 +13526,7 @@ namespace ts {
         function checkSourceElement(node: Node): void {
             if (!node) {
                 return;
-            }
+            }                   
 
             let kind = node.kind;
             if (cancellationToken) {
@@ -13774,7 +13784,7 @@ namespace ts {
                 potentialThisCollisions.length = 0;
 
                 forEach(node.statements, checkSourceElement);
-                checkFunctionAndClassExpressionBodies(node);
+                checkFunctionAndClassExpressionBodies(node);                
 
                 if (isExternalModule(node)) {
                     checkExternalModuleExports(node);

@@ -8,36 +8,19 @@
 namespace ts {
 
     export class RsTranslationState {
-
         private _initValidator = new InitializationValidator();
-        private _parentNode: Node[] = [];
-        private _document: SourceFile;
 
-        public ctorValidate() {
-            this._initValidator.validate(this._document, this._diagnostics);
-        }
+        private diagnosticCollection: DiagnosticCollection = createDiagnosticCollection();
 
-        public setDocument(document: SourceFile) {
-            this._document = document;
-        }
-
-        public clearDiagnostics() {
-            this._diagnostics = [];
-        }
-
-        private _diagnostics: Diagnostic[] = [];
-
-        public isLibrary(ast: Node): boolean {
-            return getSourceFileOfNode(ast).text.indexOf("lib.d.ts") === -1;
-        }
-
-        public postDiagnostic(ast: Node, diagnosticMsg: DiagnosticMessage, _arguments: any[] = null, additionalLocations: Location[] = null) {
-            let diagnostic = createDiagnosticForNode(ast, diagnosticMsg, _arguments);
-            this._diagnostics.push(diagnostic);
+        public error(location: Node, message: DiagnosticMessage, arg0?: any, arg1?: any, arg2?: any): void {
+            let diagnostic = location
+                ? createDiagnosticForNode(location, message, arg0, arg1, arg2)
+                : createCompilerDiagnostic(message, arg0, arg1, arg2);
+            this.diagnosticCollection.add(diagnostic);
         }
 
         public diagnostics(): Diagnostic[] {
-            return this._diagnostics;
+            return this.diagnosticCollection.getDiagnostics();;
         }
     }
 
@@ -145,32 +128,35 @@ namespace ts {
 
         let jsonFiles: string[] = [];
 
-        // In RSC only the first case should ever be called.
+        // In RSC only the first case should be called.
         if (targetSourceFile === undefined) {
             jsonFiles = map(host.getSourceFiles(), sourceFile => {
                 let jsonFilePath = getNormalizedAbsolutePath(getOwnEmitOutputFilePath(sourceFile, host, ".json"), host.getCurrentDirectory());
-                emitFile(jsonFilePath, sourceFile);
+                diagnostics = concatenate(diagnostics, emitFile(jsonFilePath, sourceFile));
                 return jsonFilePath;
             });
 
             if (compilerOptions.outFile || compilerOptions.out) {
-                emitFile(compilerOptions.outFile || compilerOptions.out);
+                diagnostics = concatenate(diagnostics, emitFile(compilerOptions.outFile || compilerOptions.out));
             }
+
         }
         else {
             // RSC: this is not supposed to be triggered
             // targetSourceFile is specified (e.g calling emitter from language service or calling getSemanticDiagnostic from language service)
             if (shouldEmitToOwnFile(targetSourceFile, compilerOptions)) {
                 let jsonFilePath = getOwnEmitOutputFilePath(targetSourceFile, host, ".json");
-                emitFile(jsonFilePath, targetSourceFile);
+                diagnostics = concatenate(diagnostics, emitFile(jsonFilePath, targetSourceFile));
             }
             else if (!isDeclarationFile(targetSourceFile) && (compilerOptions.outFile || compilerOptions.out)) {
-                emitFile(compilerOptions.outFile || compilerOptions.out);
+                diagnostics = concatenate(diagnostics, emitFile(compilerOptions.outFile || compilerOptions.out));
             }
         }
 
         // Sort and make the unique list of diagnostics
         diagnostics = sortAndDeduplicateDiagnostics(diagnostics);
+        
+        // console.log("diagnostics " + diagnostics.length);
 
         return {
             emitSkipped: false,
@@ -179,8 +165,8 @@ namespace ts {
             jsonFiles
         };
 
-        function emitFile(rscFilePath: string, sourceFile?: SourceFile) {
-            emitRefScript(rscFilePath, sourceFile);
+        function emitFile(rscFilePath: string, sourceFile?: SourceFile): Diagnostic[] {
+            return emitRefScript(rscFilePath, sourceFile);
 
             // TODO
             // if (compilerOptions.declaration) {
@@ -188,7 +174,8 @@ namespace ts {
             // }
         }
 
-        function emitRefScript(rscFilePath: string, root?: SourceFile) {
+
+        function emitRefScript(rscFilePath: string, root?: SourceFile): Diagnostic[] {
             let writer = createTextWriter(newLine);
             let { write, writeTextOfNode, writeLine, increaseIndent, decreaseIndent } = writer;
 
@@ -210,47 +197,61 @@ namespace ts {
 
             /** Emit a node */
             let emit = emitRefScriptWorker;
+            let diagnostics: Diagnostic[] = []
 
             if (root) {
                 // Do not call emit directly. It does not set the currentSourceFile.
-                emitSourceFile(root);
+                diagnostics = concatenate(diagnostics, emitSourceFile(root));
             }
             else {
                 forEach(host.getSourceFiles(), sourceFile => {
                     if (!isExternalModuleOrDeclarationFile(sourceFile)) {
-                        emitSourceFile(sourceFile);
+                        diagnostics = concatenate(diagnostics, emitSourceFile(sourceFile));
                     }
                 });
             }
 
             writeLine();
             writeEmittedFiles(writer.getText(), /*writeByteOrderMark*/ compilerOptions.emitBOM);
-            return;
+            return diagnostics;
 
-            function emitSourceFile(sourceFile: SourceFile): void {
+            function emitSourceFile(sourceFile: SourceFile): Diagnostic[] {
                 currentSourceFile = sourceFile;
                 exportFunctionForFile = undefined;
-                emit(sourceFile);
+                return emit(sourceFile);
             }
 
-            function emitRefScriptWorker(node: Node) {
-                let state = new RsTranslationState();
-                let rsAST = nodeToRsAST(state, node);
-                write(PrettyJSON.stringify(rsAST.serialize(), { maxLength: 120, indent: 2 }));
+            function emitRefScriptWorker(node: Node): Diagnostic[] {
+                let initState = new RsTranslationState();
+                let { state, ast} = nodeToRsASTWithState(initState, node);
+                let diagnostics = state.diagnostics();
+                if (!compilerOptions.refscript) {
+                    return diagnostics;
+                }
+                if (diagnostics && diagnostics.length > 0) {
+                    return diagnostics;
+                }                
+                // Write the JSON file
+                write(PrettyJSON.stringify(ast.serialize(), { maxLength: 120, indent: 2 }));
+                return diagnostics;
             }
 
             function writeRefScriptFile(emitOutput: string, writeByteOrderMark: boolean) {
                 writeFile(host, diagnostics, rscFilePath, emitOutput, writeByteOrderMark);
             }
 
-            function nodeToRsAST(state: RsTranslationState, node: Node): RsAST {
+            function nodeToRsASTWithState(state: RsTranslationState, node: Node): { state: RsTranslationState; ast: RsAST } {
                 switch (node.kind) {
                     case SyntaxKind.SourceFile:
-                        return sourceFileNodeToRsAST(state, <SourceFile>node);
+                        return { state, ast: sourceFileNodeToRsAST(state, <SourceFile>node) };
                     case SyntaxKind.PropertyAssignment:
-                        return propertyAssignmentToRsAST(state, <PropertyAssignment>node);
+                        return { state, ast: propertyAssignmentToRsAST(state, <PropertyAssignment>node) };
                 }
-                throw new Error("UNIMPLEMENTED nodeToRsAST for " + SyntaxKind[node.kind]);
+                state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsAST", SyntaxKind[node.kind]);
+            }
+
+            function nodeToRsAST(state: RsTranslationState, node: Node): RsAST {
+                return nodeToRsASTWithState(state, node).ast;
             }
 
             function accumulateGlobalAnnotations(node: Node) {
@@ -267,6 +268,7 @@ namespace ts {
                 return new RsList([new RsEmptyStmt(srcSpan, globalAnnotations), ast]);
             }
 
+            // PV: please keep rscSupportedExpKinds updated
             function nodeToRsExp(state: RsTranslationState, node: Expression): RsExpression {
                 switch (node.kind) {
                     case SyntaxKind.BinaryExpression:
@@ -306,10 +308,15 @@ namespace ts {
                         return objectLiteralExpressionToRsExp(state, <ObjectLiteralExpression>node);
                     case SyntaxKind.SuperKeyword:
                         return superKeywordToRsExp(state, node);
+                    case SyntaxKind.ThisKeyword:
+                        return thisKeywordToRsExp(state, node);
+                    case SyntaxKind.NullKeyword:
+                        return nullKeywordToRsExp(state, node);
                 }
-                throw new Error("UNIMPLEMENTED nodeToRsExp for " + SyntaxKind[node.kind]);
+                state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsExp", SyntaxKind[node.kind]);
             }
-
+            
+            // PV: please keep rscSupportedLvalKinds updated
             function nodeToRsLval(state: RsTranslationState, node: Expression): RsLValue {
                 switch (node.kind) {
                     case SyntaxKind.Identifier:
@@ -317,14 +324,15 @@ namespace ts {
                     case SyntaxKind.PropertyAccessExpression:
                         return propertyAccessExpressionToRsLVal(state, <PropertyAccessExpression>node);
                 }
-                throw new Error("[refscript] Unimplemented nodeToRsLval for " + SyntaxKind[node.kind]);
+                state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsLVal", SyntaxKind[node.kind]);
             }
 
+            // PV, please keep rscSupportedStmtKinds updated            
             function nodeToRsStmt(state: RsTranslationState, node: Statement): RsStatement {
                 switch (node.kind) {
                     case SyntaxKind.FunctionDeclaration:
                         return functionDeclarationToRsStmt(state, <FunctionDeclaration>node);
-                    case SyntaxKind.ExpressionStatement: state
+                    case SyntaxKind.ExpressionStatement:
                         return expressionStatementToRsStmt(state, <ExpressionStatement>node);
                     case SyntaxKind.VariableStatement:
                         return variableStatementToRsStmt(state, <VariableStatement>node);
@@ -342,19 +350,26 @@ namespace ts {
                         return throwStatementToRsStmt(state, <ThrowStatement>node);
                     case SyntaxKind.ClassDeclaration:
                         return classDeclarationToRsStmt(state, <ClassDeclaration>node);
-                }
+                    case SyntaxKind.ModuleDeclaration:
+                        return moduleDeclarationToRsStmt(state, <ModuleDeclaration>node);
+                    case SyntaxKind.WhileStatement:
+                        return whileStatementToRsStmt(state, <WhileStatement>node);
 
-                throw new Error("[refscript] Unimplemented nodeToRsStmt for " + SyntaxKind[node.kind]);
+                }
+                state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsStmt", SyntaxKind[node.kind]);
             }
 
+            // PV: please keep rscSupportedClassEltKinds updated 
             function nodeToRsClassElts(state: RsTranslationState, node: ClassElement): RsClassElt[] {
                 switch (node.kind) {
                     case SyntaxKind.Constructor:
                         return constructorDeclarationToRsClassElts(state, <ConstructorDeclaration>node);
                     case SyntaxKind.MethodDeclaration:
                         return methodDeclarationToRsClassElts(state, <MethodDeclaration>node);
+                    case SyntaxKind.PropertyDeclaration:
+                        return propertyDeclarationToRsClassElts(state, <PropertyDeclaration>node);
                 }
-                throw new Error("[refscript] Unimplemented nodeToRsClassElts for " + SyntaxKind[node.kind]);
+                state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsClassElts", SyntaxKind[node.kind]);
             }
 
             /**
@@ -375,6 +390,7 @@ namespace ts {
                 return new RsList(node.map(n => mapper(state, n)));
             }
 
+            // PV: please keep rscSupportedIdKinds updated 
             function nodeToRsId(state: RsTranslationState, node: Node): RsId {
                 switch (node.kind) {
                     case SyntaxKind.Identifier:
@@ -382,8 +398,7 @@ namespace ts {
                     case SyntaxKind.Parameter:
                         return new RsId(nodeToSrcSpan(node), [], getTextOfNode((<ParameterDeclaration>node).name));
                 }
-
-                throw new Error("UNIMPLEMENTED nodeToRsId for " + SyntaxKind[node.kind]);
+                state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsId", SyntaxKind[node.kind]);
             }
 
             // FunctionDeclaration
@@ -396,7 +411,7 @@ namespace ts {
 
                 node.parameters.forEach(parameter => {
                     if (parameter.initializer) {
-                        state.postDiagnostic(node, Diagnostics.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [getTextOfNode(parameter)]);
+                        state.error(node, Diagnostics.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [getTextOfNode(parameter)]);
                     }
                 });
 
@@ -525,6 +540,16 @@ namespace ts {
                 return new RsSuperRef(nodeToSrcSpan(node), []);
             }            
 
+            // this expression
+            function thisKeywordToRsExp(state: RsTranslationState, node: Expression): RsThisRef {
+                return new RsThisRef(nodeToSrcSpan(node), []);
+            }            
+
+            // this expression
+            function nullKeywordToRsExp(state: RsTranslationState, node: Expression): RsThisRef {
+                return new RsNullLit(nodeToSrcSpan(node), []);
+            }
+            
             // ExpressionStatement
             function expressionStatementToRsStmt(state: RsTranslationState, node: ExpressionStatement): RsStatement {
                 // The annotations will be provided by the contents
@@ -551,7 +576,8 @@ namespace ts {
                     case SyntaxKind.EqualsToken:
                         return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp(getTextOfNode(node.operatorToken)), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));
                     default:
-                        throw new Error("[refscript] BinaryExpression toRsExp Expression for: " + node.operatorToken.kind);
+                        state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsExp", SyntaxKind[node.kind]);
+
                 }
             }
 
@@ -726,8 +752,6 @@ namespace ts {
                                     let callSignature = checker.getSignatureFromDeclaration(<FunctionDeclaration>member);
                                     return [checker.methodToRscString(callSignature, member)];
                                 }
-                            case SyntaxKind.IndexSignature:
-                            // TODO 
                             default:
                                 return [];
                         }
@@ -778,6 +802,26 @@ namespace ts {
                     new RsList(concat(node.members.map(n => nodeToRsClassElts(state, n)))));
             }
             
+            // module declaration
+            function moduleDeclarationToRsStmt(state: RsTranslationState, node: ModuleDeclaration): RsModuleStmt {
+                let annotations = (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) ?
+                    [new ExportedAnnotation(nodeToSrcSpan(node))] : [];
+
+                if (node.body.kind === SyntaxKind.ModuleBlock) {
+                    // A relevant check in checker ensures this is a ModuleBody
+                    return new RsModuleStmt(nodeToSrcSpan(node), [], nodeToRsId(state, node.name),
+                        new RsList((<ModuleBlock>node.body).statements.map(n => nodeToRsStmt(state, n))));
+                }
+
+                throw new Error(Diagnostics.refscript_Only_support_ModuleBlocks_inside_a_Module_s_body.key);
+            }
+            
+            // while statement
+            function whileStatementToRsStmt(state: RsTranslationState, node: WhileStatement): RsWhileStmt {
+                return new RsWhileStmt(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeToRsStmt(state, node.statement));
+            }
+            
+            
             // constructor declaration
             function constructorDeclarationToRsClassElts(state: RsTranslationState, node: ConstructorDeclaration): RsConstructor[] {
                 // Do this only once for the constructor body     
@@ -789,7 +833,7 @@ namespace ts {
 
                 node.parameters.forEach(parameter => {
                     if (parameter.initializer) {
-                        state.postDiagnostic(node, Diagnostics.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [getTextOfNode(parameter)]);
+                        state.error(node, Diagnostics.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [getTextOfNode(parameter)]);
                     }
                 });
 
@@ -841,7 +885,7 @@ namespace ts {
 
                 let nameText = getTextOfNode(node.name);
                 let type = checker.getTypeAtLocation(node);
-                let signatures = checker.getSignaturesOfType(type, SignatureKind.Call);                
+                let signatures = checker.getSignaturesOfType(type, SignatureKind.Call);
 
                 let methodDeclarationAnnotations = concat(signatures.map(signature => {
                     let signatureDeclaration = signature.declaration;
@@ -856,11 +900,19 @@ namespace ts {
                         return binderAnnotations;
                     }
                 }));
-                
+
                 let static = !!(node.flags & NodeFlags.Static);
-                
-                return [new RsMemberMethDecl(nodeToSrcSpan(node), methodDeclarationAnnotations, static, new RsId(nodeToSrcSpan(node.name), [], nameText), 
+
+                return [new RsMemberMethDecl(nodeToSrcSpan(node), methodDeclarationAnnotations, static, new RsId(nodeToSrcSpan(node.name), [], nameText),
                     nodeArrayToRsAST(state, node.parameters, nodeToRsId), new RsList(node.body.statements.map(statement => nodeToRsStmt(state, statement))))];
+            }
+
+            function propertyDeclarationToRsClassElts(state: RsTranslationState, node: PropertyDeclaration): RsMemberVarDecl[] {
+                let nameText = getTextOfNode(node.name);
+                let annotations = nodeAnnotations(node, makePropertyAnnotations);
+                let static = !!(node.flags & NodeFlags.Static);
+                return [new RsMemberVarDecl(nodeToSrcSpan(node), annotations, static, new RsId(nodeToSrcSpan(node.name), [], nameText),
+                    (node.initializer) ? (new RsJust(nodeToRsExp(state, node.initializer))) : new RsNothing())];
             }
 
 

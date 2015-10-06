@@ -114,10 +114,17 @@ namespace ts {
             name: "noLib",
             type: "boolean",
         },
-        // RSC options
+        // RSC options        
         {
             name: "refscript",
-            type: "boolean",
+            shortName: "r",
+            type: {
+                "editor": RefScriptMode.Editor,
+                "cmdline": RefScriptMode.CommandLine
+            },
+            description: Diagnostics.Specify_module_code_generation_Colon_commonjs_amd_system_or_umd,
+            paramType: Diagnostics.KIND,
+            error: Diagnostics.Argument_for_refscript_option_must_be_editor_or_cmdline
         },
         {
             name: "lib",

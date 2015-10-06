@@ -566,7 +566,7 @@ namespace ts {
         function toRsc(sourceFile?: SourceFile, writeFileCallback?: WriteFileCallback, cancellationToken?: CancellationToken): EmitResult {
             // PV: this here is intened to be of type Program - This is the ugly part of avoiding classes
             let program = <Program>this;
-            return runWithCancellationToken(() => toRscWorker(program, sourceFile, writeFileCallback, cancellationToken));
+            return runWithCancellationToken(() => toRscWorker(program, sourceFile, writeFileCallback, cancellationToken));            
         }
         // RSC - end
 

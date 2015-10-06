@@ -1343,7 +1343,7 @@ namespace ts {
         getGlobalDiagnostics(cancellationToken?: CancellationToken): Diagnostic[];
         getSyntacticDiagnostics(sourceFile?: SourceFile, cancellationToken?: CancellationToken): Diagnostic[];
         getSemanticDiagnostics(sourceFile?: SourceFile, cancellationToken?: CancellationToken): Diagnostic[];
-        getDeclarationDiagnostics(sourceFile?: SourceFile, cancellationToken?: CancellationToken): Diagnostic[];
+        getDeclarationDiagnostics(sourceFile?: SourceFile, cancellationToken?: CancellationToken): Diagnostic[];        
 
         /**
          * Gets a type checker that can be used to semantically analyze source fils in the program.
@@ -2049,8 +2049,8 @@ namespace ts {
         noErrorTruncation?: boolean;
         noImplicitAny?: boolean;
         noLib?: boolean;
-        refscript?: boolean;    // RSC flag passed
-        lib?: string;    // RSC provided library (instead of default)
+        refscript?: RefScriptMode;      // RSC flag passed
+        lib?: string;                   // RSC provided library (instead of default)
         noResolve?: boolean;
         out?: string;
         outFile?: string;
@@ -2085,6 +2085,12 @@ namespace ts {
         AMD = 2,
         UMD = 3,
         System = 4,
+    }
+    
+    // RSC
+    export enum RefScriptMode {
+        Editor = 0,
+        CommandLine = 2
     }
 
     export const enum JsxEmit {
