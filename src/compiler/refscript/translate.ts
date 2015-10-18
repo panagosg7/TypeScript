@@ -806,10 +806,12 @@ namespace ts {
             function moduleDeclarationToRsStmt(state: RsTranslationState, node: ModuleDeclaration): RsModuleStmt {
                 let annotations = (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) ?
                     [new ExportedAnnotation(nodeToSrcSpan(node))] : [];
+                    
+                annotations = concatenate(annotations, [new ModuleAnnotation(nodeToSrcSpan(node), "module " + getTextOfNode(node.name))]);
 
                 if (node.body.kind === SyntaxKind.ModuleBlock) {
                     // A relevant check in checker ensures this is a ModuleBody
-                    return new RsModuleStmt(nodeToSrcSpan(node), [], nodeToRsId(state, node.name),
+                    return new RsModuleStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
                         new RsList((<ModuleBlock>node.body).statements.map(n => nodeToRsStmt(state, n))));
                 }
 

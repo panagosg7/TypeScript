@@ -26,6 +26,7 @@ module ts {
         VariableDeclarationRawSpec,    // Variable specification
         FunctionExpressionRawSpec,     // Anonymous function specification
         InterfaceRawSpec,              // Data type definition
+        ModuleRawSpec,                 // Module specification        
         ClassRawSpec,                  // Class specification
         FieldRawSpec,                  // Field specification
         MethodRawSpec,                 // Method specification
@@ -97,13 +98,7 @@ module ts {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.TypeAliasRawSpec, content);
         }
-    }
-    
-    export class ClassStatementAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.ClassRawSpec, content);
-        }
-    }
+    }        
 
     export class VariableDeclarationAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
@@ -120,6 +115,12 @@ module ts {
     export class InterfaceAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.InterfaceRawSpec, content);
+        }
+    }
+
+    export class ModuleAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.ModuleRawSpec, content);
         }
     }
 
@@ -310,47 +311,7 @@ module ts {
             }
         }
         return [];
-    }
-
-    /**
-     * toSpecKind
-     * @param  {string}         s the fist token appearing in a annotation string
-     * @return {AnnotationKind}   the corresponding kind of the annotation
-     */
-    function toSpecKind(s: string): AnnotationKind {
-
-        // TODO
-        let ctx: AnnotContext = undefined;
-
-        switch (s) {
-            case "measure":
-                return AnnotationKind.MeasureRawSpec;
-            case "qualif":
-                return AnnotationKind.QualifierRawSpec;
-            case "interface":
-                return AnnotationKind.InterfaceRawSpec;
-            case "type":
-                return AnnotationKind.TypeAliasRawSpec;
-            case "class":
-                return AnnotationKind.ClassRawSpec;
-            case "predicate":
-                return AnnotationKind.PredicateAliasRawSpec;
-            case "invariant":
-                return AnnotationKind.InvariantRawSpec;
-            case "cast":
-                return AnnotationKind.CastRawSpec;
-            case "<anonymous>":
-                return AnnotationKind.FunctionExpressionRawSpec;
-            case "option":
-                return AnnotationKind.OptionRawSpec;
-            default:
-                if (ctx === AnnotContext.FunctionDeclaration)
-                    return AnnotationKind.FunctionDeclarationRawSpec;
-                else
-                    return AnnotationKind.VariableDeclarationRawSpec;
-        }
-    }
-    // }
+    }   
 
     function isReservedAnnotationPrefix(s: string) {
         return (indexOfEq(["measure", "qualif", "interface", "alias", "class", "predicate", "invariant", "cast", "<anonymous>", "option"], s) !== -1);
