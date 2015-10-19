@@ -11872,6 +11872,12 @@ namespace ts {
                 checkCollisionWithCapturedThisVariable(node, <Identifier>node.name);
                 checkCollisionWithRequireExportsInGeneratedCode(node, <Identifier>node.name);
             }
+                        
+            // RSC             
+            if (((symbol.flags & SymbolFlags.BlockScoped) === 0) && ((node.parent.kind === SyntaxKind.VariableDeclarationList) || (node.parent.kind === SyntaxKind.VariableDeclaration))) {
+                error(node, Diagnostics.refscript_Only_supports_block_scoped_variables_let_or_const);
+            }           
+            
         }
 
         function checkVariableDeclaration(node: VariableDeclaration) {

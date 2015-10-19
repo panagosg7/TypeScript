@@ -2626,5 +2626,9 @@
      "[refscript] Does not supported function expressions as field initializers.": {                        
          "category": "Unimplemented",
          "code": 10046
+     },
+     "[refscript] Only supports block-scoped variables (let or const).": {                        
+         "category": "Unimplemented",
+         "code": 10047
      }
  }
