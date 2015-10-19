@@ -268,7 +268,6 @@ namespace ts {
                 return new RsList([new RsEmptyStmt(srcSpan, globalAnnotations), ast]);
             }
 
-            // PV: please keep rscSupportedExpKinds updated
             function nodeToRsExp(state: RsTranslationState, node: Expression): RsExpression {
                 switch (node.kind) {
                     case SyntaxKind.BinaryExpression:
@@ -316,18 +315,18 @@ namespace ts {
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsExp", SyntaxKind[node.kind]);
             }
             
-            // PV: please keep rscSupportedLvalKinds updated
             function nodeToRsLval(state: RsTranslationState, node: Expression): RsLValue {
                 switch (node.kind) {
                     case SyntaxKind.Identifier:
                         return new RsLVar(nodeToSrcSpan(node), [], (<Identifier>node).text);
                     case SyntaxKind.PropertyAccessExpression:
                         return propertyAccessExpressionToRsLVal(state, <PropertyAccessExpression>node);
+                    case SyntaxKind.ElementAccessExpression:
+                        return elementAccessExpressionToRsLVal(state, <ElementAccessExpression>node);
                 }
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsLVal", SyntaxKind[node.kind]);
             }
 
-            // PV, please keep rscSupportedStmtKinds updated            
             function nodeToRsStmt(state: RsTranslationState, node: Statement): RsStatement {
                 switch (node.kind) {
                     case SyntaxKind.FunctionDeclaration:
@@ -360,7 +359,6 @@ namespace ts {
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsStmt", SyntaxKind[node.kind]);
             }
 
-            // PV: please keep rscSupportedClassEltKinds updated 
             function nodeToRsClassElts(state: RsTranslationState, node: ClassElement): RsClassElt[] {
                 switch (node.kind) {
                     case SyntaxKind.Constructor:
@@ -492,6 +490,11 @@ namespace ts {
             function propertyAccessExpressionToRsLVal(state: RsTranslationState, node: PropertyAccessExpression): RsLValue {
                 return new RsLDot(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), getTextOfNode(node.name));
             }
+
+            // Element Access
+            function elementAccessExpressionToRsLVal(state: RsTranslationState, node: ElementAccessExpression): RsLValue {
+                return new RsLBracket(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeToRsExp(state, node.argumentExpression));
+            }                        
 
             // Stirng literal
             function stringLiteralToRsExp(state: RsTranslationState, node: StringLiteral): RsStringLit {
