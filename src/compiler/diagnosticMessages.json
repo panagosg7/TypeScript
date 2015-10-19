@@ -2618,6 +2618,13 @@
      "Argument for '--refscript' option must be 'editor' or 'cmdline'.": {
          "category": "Error",
          "code": 10044
+     },
+     "[refscript] Unsupported prefix operator '{0}'.": {                        
+         "category": "Unimplemented",
+         "code": 10045
+     },
+     "[refscript] Does not supported function expressions as field initializers.": {                        
+         "category": "Unimplemented",
+         "code": 10046
      }
-
  }

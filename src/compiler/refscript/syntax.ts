@@ -360,7 +360,6 @@ module ts {
     }
 
     export class RsUnaryAssignOp extends RsAST {
-
         public serialize() {
             return RsUnaryAssignOpKind[this.opKind];
         }
@@ -385,20 +384,8 @@ module ts {
             return RsPrefixOpKind[this.opKind];
         }
 
-        private opKind: RsPrefixOpKind;
-
-        constructor(kind: SyntaxKind) {
-            super();
-            switch (kind) {
-                case SyntaxKind.MinusToken:
-                    this.opKind = RsPrefixOpKind.PrefixMinus;
-                    break;
-                case SyntaxKind.TypeOfExpression:
-                    this.opKind = RsPrefixOpKind.PrefixTypeof;
-                    break;
-                default:
-                    throw new Error("[refscript] unsupported prefix kind: " + kind);
-            }
+        constructor(public opKind: RsPrefixOpKind) {
+            super();            
         }
     }
 

@@ -354,7 +354,8 @@ namespace ts {
                         return moduleDeclarationToRsStmt(state, <ModuleDeclaration>node);
                     case SyntaxKind.WhileStatement:
                         return whileStatementToRsStmt(state, <WhileStatement>node);
-
+                    case SyntaxKind.EmptyStatement:
+                        return emptyStatementToRsStmt(state, node);
                 }
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsStmt", SyntaxKind[node.kind]);
             }
@@ -404,42 +405,58 @@ namespace ts {
             // FunctionDeclaration
             function functionDeclarationToRsStmt(state: RsTranslationState, node: FunctionDeclaration): RsStatement {
                 let isAmbient = !!(node.flags & NodeFlags.Ambient);
-                if (!node.body && !isAmbient) {
-                    // Ignore the overload - it will be included in the function body type
-                    return new RsEmptyStmt(nodeToSrcSpan(node), []);
-                }
-
-                node.parameters.forEach(parameter => {
-                    if (parameter.initializer) {
-                        state.error(node, Diagnostics.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [getTextOfNode(parameter)]);
-                    }
-                });
-
-                let nameText = node.name.text;
                 let annotations: Annotation[] = []
-
                 // Add the 'exported' annotation -- exported function are assumed to be top-level (are not K-vared)
                 if (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
                     annotations = concatenate(annotations, [new ExportedAnnotation(nodeToSrcSpan(node))]);
                 }
 
                 let type = checker.getTypeAtLocation(node);
-                let signatures = checker.getSignaturesOfType(type, SignatureKind.Call);
-
-                let functionDeclarationAnnotations = concat(signatures.map(signature => {
-                    let signatureDeclaration = signature.declaration;
-                    let sourceSpan = nodeToSrcSpan(signatureDeclaration);
-                    // these are binder annotations
-                    let binderAnnotations = nodeAnnotations(signatureDeclaration, makeFunctionDeclarationAnnotation);
+                let functionDeclarationAnnotations: FunctionDeclarationAnnotation[] = [];
+                let nameText = node.name.text;
+                
+                node.parameters.forEach(parameter => {
+                        if (parameter.initializer) {
+                            state.error(node, Diagnostics.Initialization_of_parameter_0_at_the_signature_site_is_not_supported, [getTextOfNode(parameter)]);
+                        }
+                    });
+                
+                if (isAmbient) {
+                    // All 'declare' overloads should be taken into account
+                    
+                    let signature = checker.getSignatureFromDeclaration(node);
+                    
+                    let binderAnnotations = nodeAnnotations(node, makeFunctionDeclarationAnnotation);                        
                     if (binderAnnotations.length === 0) {
-                        // No signature annotation on this declaration -> use the one TS infers
-                        // return signatureToRsTFun(signature).map(functionType => new FunctionDeclarationAnnotation(sourceSpan, functionType.toString()));
-                        return [new FunctionDeclarationAnnotation(sourceSpan, nameText + " :: " + checker.functionToRscString(signature, signatureDeclaration))];
+                        functionDeclarationAnnotations = [new FunctionDeclarationAnnotation(nodeToSrcSpan(node), nameText + " :: " + checker.functionToRscString(signature, node))];
                     }
                     else {
-                        return binderAnnotations;
+                        functionDeclarationAnnotations = binderAnnotations;
                     }
-                }));
+                }                
+                else if (!node.body) {
+                    // Ignore the overload - it will be included in the function body type
+                    return new RsEmptyStmt(nodeToSrcSpan(node), []);
+                }
+                else {
+                    
+                    let signatures = checker.getSignaturesOfType(type, SignatureKind.Call);    
+                    functionDeclarationAnnotations = concat(signatures.map(signature => {
+                        let signatureDeclaration = signature.declaration;
+                        let sourceSpan = nodeToSrcSpan(signatureDeclaration);
+                        // these are binder annotations
+                        let binderAnnotations = nodeAnnotations(signatureDeclaration, makeFunctionDeclarationAnnotation);
+                        if (binderAnnotations.length === 0) {
+                            // No signature annotation on this declaration -> use the one TS infers
+                            // return signatureToRsTFun(signature).map(functionType => new FunctionDeclarationAnnotation(sourceSpan, functionType.toString()));
+                            return [new FunctionDeclarationAnnotation(sourceSpan, nameText + " :: " + checker.functionToRscString(signature, signatureDeclaration))];
+                        }
+                        else {
+                            return binderAnnotations;
+                        }
+                    }));
+                }
+                
                 annotations = annotations.concat(functionDeclarationAnnotations);
                 return new RsFunctionStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name), nodeArrayToRsAST(state, node.parameters, nodeToRsId),
                     (isAmbient) ? (new RsNothing()) : (new RsJust(new RsList(node.body.statements.map(statement => nodeToRsStmt(state, statement))))));
@@ -488,7 +505,16 @@ namespace ts {
 
             // Prefix unary expression
             function prefixUnaryExpressionToRsExp(state: RsTranslationState, node: PrefixUnaryExpression): RsPrefixExpr {
-                return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(node.operator), nodeToRsExp(state, node.operand));
+                switch (node.operator) {
+                    case SyntaxKind.MinusToken:                   
+                        return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixMinus), nodeToRsExp(state, node.operand));
+                    case SyntaxKind.TypeOfExpression:
+                        return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixTypeof), nodeToRsExp(state, node.operand));
+                    case SyntaxKind.ExclamationToken:
+                        return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixLNot), nodeToRsExp(state, node.operand));                    
+                    default:
+                        state.error(node, Diagnostics.refscript_Unsupported_prefix_operator_0, SyntaxKind[node.operator]);
+                }
             }
 
             // Parenthesized expression
@@ -515,7 +541,7 @@ namespace ts {
 
             // typeof expression
             function typeOfExpressionToRsExp(state: RsTranslationState, node: TypeOfExpression): RsPrefixExpr {
-                return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(node.kind), nodeToRsExp(state, node.expression));
+                return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixTypeof), nodeToRsExp(state, node.expression));
             }
             
             // type assertion expression
@@ -823,6 +849,10 @@ namespace ts {
                 return new RsWhileStmt(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeToRsStmt(state, node.statement));
             }
             
+            // while statement
+            function emptyStatementToRsStmt(state: RsTranslationState, node: Statement): RsEmptyStmt {
+                return new RsEmptyStmt(nodeToSrcSpan(node), []);
+            }
             
             // constructor declaration
             function constructorDeclarationToRsClassElts(state: RsTranslationState, node: ConstructorDeclaration): RsConstructor[] {
@@ -912,6 +942,11 @@ namespace ts {
             function propertyDeclarationToRsClassElts(state: RsTranslationState, node: PropertyDeclaration): RsMemberVarDecl[] {
                 let nameText = getTextOfNode(node.name);
                 let annotations = nodeAnnotations(node, makePropertyAnnotations);
+                if (annotations.length === 0) {
+                    let type = checker.getTypeAtLocation(node);
+                    annotations = concatenate(annotations, [new PropertyAnnotation(nodeToSrcSpan(node), nameText + ": " + checker.typeToString(type, node))]);
+                    // console.log(checker.typeToString(type, node));
+                }
                 let static = !!(node.flags & NodeFlags.Static);
                 return [new RsMemberVarDecl(nodeToSrcSpan(node), annotations, static, new RsId(nodeToSrcSpan(node.name), [], nameText),
                     (node.initializer) ? (new RsJust(nodeToRsExp(state, node.initializer))) : new RsNothing())];

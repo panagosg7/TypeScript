@@ -656,5 +656,7 @@ namespace ts {
         refscript_0_SyntaxKind_1_not_supported_yet: { code: 10042, category: DiagnosticCategory.Unimplemented, key: "[refscript - {0}] SyntaxKind '{1}' not supported yet." },
         Specify_use_of_refscript_Colon_editor_or_cmdline: { code: 10043, category: DiagnosticCategory.Message, key: "Specify use of refscript: 'editor' or 'cmdline'" },
         Argument_for_refscript_option_must_be_editor_or_cmdline: { code: 10044, category: DiagnosticCategory.Error, key: "Argument for '--refscript' option must be 'editor' or 'cmdline'." },
+        refscript_Unsupported_prefix_operator_0: { code: 10045, category: DiagnosticCategory.Unimplemented, key: "[refscript] Unsupported prefix operator '{0}'." },
+        refscript_Does_not_supported_function_expressions_as_field_initializers: { code: 10046, category: DiagnosticCategory.Unimplemented, key: "[refscript] Does not supported function expressions as field initializers." },
     };
 }

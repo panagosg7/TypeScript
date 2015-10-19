@@ -10497,6 +10497,12 @@ namespace ts {
             // Grammar checking
             checkGrammarDecorators(node) || checkGrammarModifiers(node) || checkGrammarProperty(node) || checkGrammarComputedPropertyName(node.name);
 
+            // RSC
+            if (node.initializer && node.initializer.kind === SyntaxKind.FunctionExpression) {
+                error(node, Diagnostics.refscript_Does_not_supported_function_expressions_as_field_initializers);            
+            } 
+
+
             checkVariableLikeDeclaration(node);
         }
 
@@ -12589,6 +12595,7 @@ namespace ts {
         }
 
         function checkClassDeclaration(node: ClassDeclaration) {
+            
             if (!node.name && !(node.flags & NodeFlags.Default)) {
                 grammarErrorOnFirstToken(node, Diagnostics.A_class_declaration_without_the_default_modifier_must_have_a_name);
             }
@@ -12604,7 +12611,7 @@ namespace ts {
 
             if (!node.members.some(member => member && (member.kind === SyntaxKind.Constructor))) {
                 error(node, Diagnostics.refscript_Class_declaration_needs_to_contain_a_constructor);
-            }
+            }            
 
         }
 
