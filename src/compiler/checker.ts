@@ -1481,7 +1481,7 @@ namespace ts {
 
         function typeToString(type: Type, enclosingDeclaration?: Node, flags?: TypeFormatFlags): string {
             if (refscript) {
-                flags = TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType;
+                flags = TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType | TypeFormatFlags.UseFullyQualifiedType;
             }
             let writer = getSingleLineStringWriter();
             getSymbolDisplayBuilder().buildTypeDisplay(type, writer, enclosingDeclaration, flags);                 // RSC
@@ -10140,7 +10140,7 @@ namespace ts {
         // have the wildcard function type; this form of type check is used during overload resolution to exclude
         // contextually typed function and arrow expressions in the initial phase.
         function checkExpression(node: Expression | QualifiedName, contextualMapper?: TypeMapper): Type {
-            
+
             let type: Type;
             if (node.kind === SyntaxKind.QualifiedName) {
                 type = checkQualifiedName(<QualifiedName>node);
@@ -10499,8 +10499,8 @@ namespace ts {
 
             // RSC
             if (node.initializer && node.initializer.kind === SyntaxKind.FunctionExpression) {
-                error(node, Diagnostics.refscript_Does_not_supported_function_expressions_as_field_initializers);            
-            } 
+                error(node, Diagnostics.refscript_Does_not_supported_function_expressions_as_field_initializers);
+            }
 
 
             checkVariableLikeDeclaration(node);
@@ -11876,8 +11876,8 @@ namespace ts {
             // RSC             
             if (((symbol.flags & SymbolFlags.BlockScoped) === 0) && ((node.parent.kind === SyntaxKind.VariableDeclarationList) || (node.parent.kind === SyntaxKind.VariableDeclaration))) {
                 error(node, Diagnostics.refscript_Only_supports_block_scoped_variables_let_or_const);
-            }           
-            
+            }
+
         }
 
         function checkVariableDeclaration(node: VariableDeclaration) {
@@ -12601,7 +12601,7 @@ namespace ts {
         }
 
         function checkClassDeclaration(node: ClassDeclaration) {
-            
+
             if (!node.name && !(node.flags & NodeFlags.Default)) {
                 grammarErrorOnFirstToken(node, Diagnostics.A_class_declaration_without_the_default_modifier_must_have_a_name);
             }
@@ -12617,7 +12617,7 @@ namespace ts {
 
             if (!node.members.some(member => member && (member.kind === SyntaxKind.Constructor))) {
                 error(node, Diagnostics.refscript_Class_declaration_needs_to_contain_a_constructor);
-            }            
+            }
 
         }
 
@@ -13539,7 +13539,7 @@ namespace ts {
         function checkSourceElement(node: Node): void {
             if (!node) {
                 return;
-            }                   
+            }
 
             let kind = node.kind;
             if (cancellationToken) {
@@ -13797,7 +13797,7 @@ namespace ts {
                 potentialThisCollisions.length = 0;
 
                 forEach(node.statements, checkSourceElement);
-                checkFunctionAndClassExpressionBodies(node);                
+                checkFunctionAndClassExpressionBodies(node);
 
                 if (isExternalModule(node)) {
                     checkExternalModuleExports(node);

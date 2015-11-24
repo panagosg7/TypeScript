@@ -2630,5 +2630,9 @@
      "[refscript] Only supports block-scoped variables (let or const).": {                        
          "category": "Unimplemented",
          "code": 10047
+     },
+     "[refscript] Unsupported postfix operator '{0}'.": {                        
+         "category": "Unimplemented",
+         "code": 10048
      }
  }

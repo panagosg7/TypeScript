@@ -65,9 +65,9 @@ namespace ts {
         let text1 = diagnostic.messageText;
         let msg = typeof text1 === "string" ? text1 : text1.messageText;
         let file = diagnostic.file;
-        let fileName = file.fileName;
-        let start = getLineAndCharacterOfPosition(file, diagnostic.start);
-        let stop = getLineAndCharacterOfPosition(file, diagnostic.start + diagnostic.length);
+        let fileName = (file) ? file.fileName : "";
+        let start = (file) ? getLineAndCharacterOfPosition(file, diagnostic.start) : { line: -1, character: -1 };
+        let stop = (file) ? getLineAndCharacterOfPosition(file, diagnostic.start + diagnostic.length) : { line: -1, character: -1 };
         return new FPError(msg, new FPSrcSpan(new FPSrcPos(fileName, start.line, start.character), new FPSrcPos(fileName, stop.line, stop.character)));
     }
 
@@ -155,9 +155,7 @@ namespace ts {
 
         // Sort and make the unique list of diagnostics
         diagnostics = sortAndDeduplicateDiagnostics(diagnostics);
-        
-        // console.log("diagnostics " + diagnostics.length);
-
+      
         return {
             emitSkipped: false,
             diagnostics,
@@ -290,6 +288,8 @@ namespace ts {
                         return newExpressionToRsExp(state, <NewExpression>node);
                     case SyntaxKind.PrefixUnaryExpression:
                         return prefixUnaryExpressionToRsExp(state, <PrefixUnaryExpression>node);
+                    case SyntaxKind.PostfixUnaryExpression:
+                        return postfixUnaryExpressionToRsExp(state, <PostfixUnaryExpression>node);
                     case SyntaxKind.ParenthesizedExpression:
                         return parenthesizedExpressionToRsExp(state, <ParenthesizedExpression>node);
                     case SyntaxKind.TrueKeyword:
@@ -507,16 +507,32 @@ namespace ts {
             }
 
             // Prefix unary expression
-            function prefixUnaryExpressionToRsExp(state: RsTranslationState, node: PrefixUnaryExpression): RsPrefixExpr {
+            function prefixUnaryExpressionToRsExp(state: RsTranslationState, node: PrefixUnaryExpression): RsExpression {
                 switch (node.operator) {
                     case SyntaxKind.MinusToken:                   
                         return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixMinus), nodeToRsExp(state, node.operand));
                     case SyntaxKind.TypeOfExpression:
                         return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixTypeof), nodeToRsExp(state, node.operand));
                     case SyntaxKind.ExclamationToken:
-                        return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixLNot), nodeToRsExp(state, node.operand));                    
+                        return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixLNot), nodeToRsExp(state, node.operand));
+                    case SyntaxKind.PlusPlusToken:
+                        return new RsUnaryAssignExpr(nodeToSrcSpan(node), [], new RsUnaryAssignOp(RsUnaryAssignOpKind.PrefixInc), nodeToRsLval(state, node.operand));
+                    case SyntaxKind.PlusToken:
+                        return new RsPrefixExpr(nodeToSrcSpan(node), [], new RsPrefixOp(RsPrefixOpKind.PrefixPlus), nodeToRsExp(state, node.operand));
                     default:
                         state.error(node, Diagnostics.refscript_Unsupported_prefix_operator_0, SyntaxKind[node.operator]);
+                }
+            }
+
+            // Postfix unary expression
+            function postfixUnaryExpressionToRsExp(state: RsTranslationState, node: PostfixUnaryExpression): RsUnaryAssignExpr {
+                switch (node.operator) {
+                    case SyntaxKind.PlusPlusToken:                   
+                        return new RsUnaryAssignExpr(nodeToSrcSpan(node), [], new RsUnaryAssignOp(RsUnaryAssignOpKind.PostfixInc), nodeToRsLval(state, node.operand));                       
+                    case SyntaxKind.MinusMinusToken:
+                        return new RsUnaryAssignExpr(nodeToSrcSpan(node), [], new RsUnaryAssignOp(RsUnaryAssignOpKind.PostfixDec), nodeToRsLval(state, node.operand));                                            
+                    default:
+                        state.error(node, Diagnostics.refscript_Unsupported_postfix_operator_0, SyntaxKind[node.operator]);
                 }
             }
 
@@ -613,7 +629,6 @@ namespace ts {
             function literalExpressionToRsExp(state: RsTranslationState, node: LiteralExpression): RsExpression {
                 let nodeText = getTextOfNode(node);
                 if (nodeText.indexOf(".") === -1) {
-                    //console.log(token.text() + " kind: " + SyntaxKind[token.kind()] + "  ISHEX? " + isHexLit(token.text()));
                     if (isHexLit(nodeText)) {
                         return new RsHexLit(nodeToSrcSpan(node), [], nodeText);
                     }
@@ -708,12 +723,14 @@ namespace ts {
                         switch (heritageClause.token) {
                             case SyntaxKind.ExtendsKeyword:
                                 if (heritageClause.types && heritageClause.types.length > 0) {
-                                    return ["extends", heritageClause.types.map(type => checker.typeToString(checker.getTypeAtLocation(type))).join(", ")];
+                                    // return ["extends", heritageClause.types.map(type => checker.typeToString(checker.getTypeAtLocation(type))).join(", ")];
+                                    return [getTextOfNode(heritageClause)];
                                 }
                                 break;
                             case SyntaxKind.ImplementsKeyword:
                                 if (heritageClause.types && heritageClause.types.length > 0) {
-                                    return ["implements", heritageClause.types.map(type => checker.typeToString(checker.getTypeAtLocation(type))).join(", ")];
+                                    // return ["implements", heritageClause.types.map(type => checker.typeToString(checker.getTypeAtLocation(type))).join(", ")];
+                                    return [getTextOfNode(heritageClause)];
                                 }
                                 break;
                         }
@@ -747,7 +764,7 @@ namespace ts {
                             case SyntaxKind.ConstructSignature:
                                 let constructorAnnotations = nodeAnnotations(<ConstructorDeclaration>member, makeConstructorAnnotations);
                                 if (constructorAnnotations.length > 0) {
-                                    return [constructorAnnotations[0].content];
+                                    return constructorAnnotations.map(c => c.content);
                                 }
                                 else {
                                     let constructorSignature = checker.getSignatureFromDeclaration(<ConstructorDeclaration>member);
@@ -756,7 +773,7 @@ namespace ts {
                             case SyntaxKind.MethodSignature:
                                 let methodAnnotations = nodeAnnotations(<MethodDeclaration>member, makeMethodDeclarationAnnotations);
                                 if (methodAnnotations.length > 0) {
-                                    return [methodAnnotations[0].content];
+                                    return methodAnnotations.map(m => m.content);
                                 }
                                 else {
                                     let methodSignature = checker.getSignatureFromDeclaration(<MethodDeclaration>member);
@@ -775,7 +792,7 @@ namespace ts {
                             case SyntaxKind.CallSignature:
                                 let callAnnotations = nodeAnnotations(<FunctionDeclaration>member, makeCallAnnotations);
                                 if (callAnnotations.length > 0) {
-                                    return [callAnnotations[0].content];
+                                    return callAnnotations.map(c => c.content);
                                 }
                                 else {
                                     let callSignature = checker.getSignatureFromDeclaration(<FunctionDeclaration>member);
@@ -948,7 +965,6 @@ namespace ts {
                 if (annotations.length === 0) {
                     let type = checker.getTypeAtLocation(node);
                     annotations = concatenate(annotations, [new PropertyAnnotation(nodeToSrcSpan(node), nameText + ": " + checker.typeToString(type, node))]);
-                    // console.log(checker.typeToString(type, node));
                 }
                 let static = !!(node.flags & NodeFlags.Static);
                 return [new RsMemberVarDecl(nodeToSrcSpan(node), annotations, static, new RsId(nodeToSrcSpan(node.name), [], nameText),

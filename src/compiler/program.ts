@@ -239,7 +239,7 @@ namespace ts {
         rootDir: ".",
         sourceMap: false,
         lib: preludePath
-        //lib: combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), "lib.d.ts")
+        // lib: combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), "lib.d.ts")
     };
 
     export function createCompilerHost(options: CompilerOptions, setParentNodes?: boolean): CompilerHost {
@@ -315,9 +315,9 @@ namespace ts {
             getDefaultLibFileName: options => {
                 if (options.lib) {
                     return combinePaths(normalizePath(sys.getCurrentDirectory()), options.lib);
-                }                
+                }
                 return preludePath; // RSC                               
-                //return combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), getDefaultLibFileName(options))
+                // return combinePaths(getDirectoryPath(normalizePath(sys.getExecutingFilePath())), getDefaultLibFileName(options))
             },
             writeFile,
             getCurrentDirectory: () => currentDirectory || (currentDirectory = sys.getCurrentDirectory()),

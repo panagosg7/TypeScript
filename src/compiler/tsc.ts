@@ -361,7 +361,7 @@ namespace ts {
         return { program, exitStatus };
 
         function compileProgram(): ExitStatus {
-            
+                        
             let diagnostics: Diagnostic[];
 
             // First get and report any syntactic errors.
@@ -386,6 +386,7 @@ namespace ts {
             }
 
             if (compilerOptions.refscript) {
+                
                 // Terminal mode
                 if (diagnostics.length > 0) {
                     dumpRefScriptDiagnostics(diagnostics, []);
