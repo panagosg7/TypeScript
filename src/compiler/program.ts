@@ -5,7 +5,7 @@
 namespace ts {
     
     // REFSCRIPT 
-    export const preludePath = "/home/pvekris/Documents/Research/rsc/RefScript/include/prelude.d.ts";
+    export const preludePath = "/home/pvekris/Documents/Research/rsc/refscript/include/prelude.d.ts";
     
     
     /* @internal */ export let programTime = 0;
