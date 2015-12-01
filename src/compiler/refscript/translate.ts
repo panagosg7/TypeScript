@@ -661,9 +661,9 @@ namespace ts {
                     // PV: not working (why?)
                     // // parse the form: [assgignability] a :: ... -- ignored with over-declaration annotationy
                     // let inlineAssignability = nodeAnnotations(variableStatement.declarationList, makeVariableAssignability)[0];
-                    let inlineAssignability = Assignability.WriteLocal;
+                    let assignability = (isInAmbientContext(declaration)) ? Assignability.Ambient : Assignability.WriteLocal;                
                     annotations = concatenate(annotations,
-                        [new VariableDeclarationAnnotation(nodeToSrcSpan(declaration), inlineAssignability, toName(), toTypeStr())]
+                        [new VariableDeclarationAnnotation(nodeToSrcSpan(declaration), assignability, toName(), toTypeStr())]
                     );
                 }
                 // Add the 'exported' annotation
@@ -985,12 +985,6 @@ namespace ts {
                 let currentSourceFile = getSourceFileOfNode(node);
                 let comments = emptyFromUndefined(getLeadingCommentRangesOfNode(node, currentSourceFile));
                 let match = comments.map(extractRawContent);
-
-                // if (match && match.filter(t => t !== null).length > 0) {
-                //     console.log(match.filter(t => t !== null).map(m => m.cstring));
-                // }
-
-
                 return concat(match.filter(t => t !== null).map(t => creator(t.cstring, t.ss, node)));
 
                 function extractRawContent(commentRange: CommentRange) {
