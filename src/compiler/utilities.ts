@@ -97,8 +97,8 @@ namespace ts {
         }
 
         return true;
-    }    
-   
+    }
+
     export function hasResolvedModuleName(sourceFile: SourceFile, moduleNameText: string): boolean {
         return sourceFile.resolvedModules && hasProperty(sourceFile.resolvedModules, moduleNameText);
     }
@@ -417,6 +417,10 @@ namespace ts {
 
     export function getLeadingCommentRangesOfNode(node: Node, sourceFileOfNode: SourceFile) {
         return getLeadingCommentRanges(sourceFileOfNode.text, node.pos);
+    }
+
+    export function getTrailingCommentRangesOfNode(node: Node, sourceFileOfNode: SourceFile) {
+        return getTrailingCommentRanges(sourceFileOfNode.text, node.pos);
     }
 
     export function getJsDocComments(node: Node, sourceFileOfNode: SourceFile) {

@@ -1,6 +1,8 @@
 
 module ts {
 
+    export const dcolon = "::";
+
     export class Pair<A, B> {
         constructor(private _fst: A, private _snd: B) { }
         public fst(): A { return this._fst; }
@@ -14,19 +16,22 @@ module ts {
     // }
 
     export enum Assignability {
-        WriteLocal,
-        WriteGlobal,
-        Ambient,
+        WriteLocal,     // local reassignable
+        WriteGlobal,    // global reassignable
+        Ambient,        // ambient contexts (declare)
+        ReadOnly,       // assigned only once
+
         Error
     }
 
     export enum AnnotationKind {
-        // Local
+
+        // Declaration specific
         FunctionDeclarationRawSpec,    // Function specification
         VariableDeclarationRawSpec,    // Variable specification
         FunctionExpressionRawSpec,     // Anonymous function specification
         InterfaceRawSpec,              // Data type definition
-        ModuleRawSpec,                 // Module specification        
+        ModuleRawSpec,                 // Module specification
         ClassRawSpec,                  // Class specification
         FieldRawSpec,                  // Field specification
         MethodRawSpec,                 // Method specification
@@ -34,6 +39,7 @@ module ts {
         CallRawSpec,                   // Call specification
         CastRawSpec,                   // Cast
         ExportRawSpec,                 // Exported element
+        AssignabilityRawSpec,          // Assignability specification
 
         // Global
         MeasureRawSpec,                // Measure
@@ -69,13 +75,13 @@ module ts {
             super(sourceSpan, AnnotationKind.FunctionDeclarationRawSpec, content);
         }
     }
-    
+
     export class ConstructorDeclarationAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.ConstructorRawSpec, content);
         }
     }
-    
+
     export class MethodDeclarationAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.MethodRawSpec, content);
@@ -98,11 +104,11 @@ module ts {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.TypeAliasRawSpec, content);
         }
-    }        
+    }
 
     export class VariableDeclarationAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan, content: string) {
-            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, content);
+        constructor(sourceSpan: RsSrcSpan, asgn: Assignability, public identifier: string, typeContent: string) {
+            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, [Assignability[asgn], identifier, dcolon, typeContent].join(" "));
         }
     }
 
@@ -204,16 +210,89 @@ module ts {
         return a instanceof GlobalAnnotation;
     }
 
-    export function makeVariableDeclarationAnnotation(s: string, srcSpan: RsSrcSpan, node?: VariableDeclaration): VariableDeclarationAnnotation[] {
-        let tokens = stringTokens(s);
-        if (!tokens || tokens.length <= 0)
-            throw new Error("[refscript] RsAnnotation could not parse string tag: " + s);
-        if (isReservedAnnotationPrefix(tokens[0]))
-            return [];
-        if (node && (getCombinedNodeFlags(node) & NodeFlags.Ambient)) {
-            return [new VariableDeclarationAnnotation(srcSpan, "ambient " + s)];
+    export function makeVariableDeclarationAnnotation(rawContent: string, srcSpan: RsSrcSpan, node: VariableDeclaration, getIdentifier: () => string, getType: () => string): VariableDeclarationAnnotation[] {
+        let tokens = stringTokens(rawContent);
+        if (!tokens || tokens.length <= 0) {
+            throw new Error("[refscript] makeVariableDeclarationAnnotation called with empty token list");
         }
-        return [new VariableDeclarationAnnotation(srcSpan, s)];
+        if (isReservedAnnotationPrefix(tokens[0])) {
+            return [];      // This has to be a global annotation -- ignore
+        }
+        let { restAsgn, asgn } = consumeAssignability(srcSpan, tokens, node);
+        // handle the case of only assignability
+        if (restAsgn && restAsgn.length <= 0) {
+           return [new VariableDeclarationAnnotation(srcSpan, asgn, getIdentifier(), getType())];
+        }
+        let { withouIdentifier, identifier } = consumeIdentifier(restAsgn);
+        let withoutDColon = consumeDColon(withouIdentifier)
+        let typeStr = withoutDColon.join(" ");
+        return [new VariableDeclarationAnnotation(srcSpan, asgn, identifier, typeStr)];
+    }
+
+    export function makeVariableAssignability(rawContent: string, srcSpan: RsSrcSpan): Assignability[] {
+        let tokens = stringTokens(rawContent);
+        if (!tokens || tokens.length <= 0) {
+            throw new Error("[refscript] makeVariableAssignability called with empty token list");
+        }
+        let { restAsgn, asgn } = consumeAssignability(srcSpan, tokens)
+        if (restAsgn && restAsgn.length > 0) {
+            throw new Error("[refscript] makeVariableAssignability returned non-empty token list");
+        }
+        return [asgn];
+    }
+
+    export function consumeAssignability(srcSpan: RsSrcSpan, tokens: string[], node?: VariableDeclaration) {
+        if (!tokens || tokens.length <= 0) {
+            throw new Error("[refscript] extractAssignabilityAnnotation called with empty token list");
+        }
+        if (isReservedAnnotationPrefix(tokens[0])) {
+            throw new Error("[refscript] extractAssignabilityAnnotation did not expect token: " + tokens[0]);
+        }
+        switch (tokens[0]) {
+            case "readonly":
+                return {
+                    restAsgn: tokens.slice(1),
+                    asgn: Assignability.ReadOnly
+                };
+            case "global":
+                return {
+                    restAsgn: tokens.slice(1),
+                    asgn: Assignability.WriteGlobal
+                };
+            case "local":
+                return {
+                    restAsgn: tokens.slice(1),
+                    asgn: Assignability.WriteLocal
+                };
+            default:
+                return {
+                    restAsgn: tokens,
+                    asgn: (node && isInAmbientContext(node)) ? Assignability.Ambient : Assignability.WriteLocal
+                }
+        }
+    }
+
+    export function consumeIdentifier(tokens: string[]) {
+        if (!tokens || tokens.length <= 0) {
+            throw new Error("[refscript] extractIdentifier called with empty token list");
+        }
+        if (isReservedAnnotationPrefix(tokens[0])) {
+            throw new Error("[refscript] extractIdentifier did not expect token: " + tokens[0]);
+        }
+        return {
+            withouIdentifier: tokens.slice(1),
+            identifier: tokens[0]
+        }
+    }
+
+    export function consumeDColon(tokens: string[]) {
+        if (!tokens || tokens.length <= 0) {
+            throw new Error("[refscript] extractDColon called with empty token list");
+        }
+        if (tokens[0] !== "::") {
+            throw new Error("[refscript] extractDColon did not expect token: " + tokens[0]);
+        }
+        return tokens.slice(1);
     }
 
     export function makeFunctionDeclarationAnnotation(s: string, srcSpan: RsSrcSpan): FunctionDeclarationAnnotation[] {
@@ -273,7 +352,7 @@ module ts {
         }
         return [];
     }
-    
+
     export function makeClassStatementAnnotations(s: string, srcSpan: RsSrcSpan): ClassAnnotation[] {
         let tokens = stringTokens(s);
         if (tokens && tokens.length > 0 && tokens[0] === "class") {
@@ -311,7 +390,7 @@ module ts {
             }
         }
         return [];
-    }   
+    }
 
     function isReservedAnnotationPrefix(s: string) {
         return (indexOfEq(["measure", "qualif", "interface", "alias", "class", "predicate", "invariant", "cast", "<anonymous>", "option"], s) !== -1);

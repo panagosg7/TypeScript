@@ -413,7 +413,7 @@ namespace ts {
 
             function emitArrayType(type: ArrayTypeNode) {
                 emitType(type.elementType);
-                write("[]");
+                write("[**]");
             }
 
             function emitTupleType(type: TupleTypeNode) {
