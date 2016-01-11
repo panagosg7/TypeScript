@@ -660,12 +660,18 @@ namespace ts {
                 let annotations: Annotation[] = nodeAnnotations(variableStatement, mkVarDeclAnn);
                 // No type annotation given -- Use the TypeScript one
                 if (!annotations.some(a => a instanceof VariableDeclarationAnnotation)) {
-                    // PV: not working (why?)
-                    // // parse the form: [assgignability] a :: ... -- ignored with over-declaration annotationy
-                    // let inlineAssignability = nodeAnnotations(variableStatement.declarationList, makeVariableAssignability)[0];
-                    let assignability = (isInAmbientContext(declaration)) ? Assignability.Ambient : Assignability.WriteLocal;                
+                    
+                    // General local annotations -- no type annotation
+                    let assignability = Assignability.WriteLocal;
+                    let type = "";
+                    
+                    // Add the type annotation for ambient declarations
+                    if (isInAmbientContext(declaration)) {                    
+                        assignability = (isInAmbientContext(declaration)) ? Assignability.Ambient : Assignability.WriteLocal;
+                        type = typeStr;
+                    }                                     
                     annotations = concatenate(annotations,
-                        [new VariableDeclarationAnnotation(nodeToSrcSpan(declaration), assignability, name, undefined)]
+                        [new VariableDeclarationAnnotation(nodeToSrcSpan(declaration), assignability, name, type)]
                     );
                 }
                 // Add the 'exported' annotation
