@@ -107,8 +107,9 @@ module ts {
     }
 
     export class VariableDeclarationAnnotation extends Annotation {
-        constructor(sourceSpan: RsSrcSpan, asgn: Assignability, public identifier: string, typeContent: string) {
-            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, [Assignability[asgn], identifier, dcolon, typeContent].join(" "));
+        constructor(sourceSpan: RsSrcSpan, asgn: Assignability, public identifier: string, typeContent: string) {            
+            super(sourceSpan, AnnotationKind.VariableDeclarationRawSpec, 
+                [Assignability[asgn], identifier].join(" ") + ((typeContent) ? ["", dcolon, typeContent].join(" ") : ""));
         }
     }
 
@@ -210,7 +211,8 @@ module ts {
         return a instanceof GlobalAnnotation;
     }
 
-    export function makeVariableDeclarationAnnotation(rawContent: string, srcSpan: RsSrcSpan, node: VariableDeclaration, getIdentifier: () => string, getType: () => string): VariableDeclarationAnnotation[] {
+    export function makeVariableDeclarationAnnotation(rawContent: string, srcSpan: RsSrcSpan, node: VariableDeclaration, id: string, type: string): VariableDeclarationAnnotation[] 
+    {
         let tokens = stringTokens(rawContent);
         if (!tokens || tokens.length <= 0) {
             throw new Error("[refscript] makeVariableDeclarationAnnotation called with empty token list");
@@ -221,7 +223,7 @@ module ts {
         let { restAsgn, asgn } = consumeAssignability(srcSpan, tokens, node);
         // handle the case of only assignability
         if (restAsgn && restAsgn.length <= 0) {
-           return [new VariableDeclarationAnnotation(srcSpan, asgn, getIdentifier(), getType())];
+           return [new VariableDeclarationAnnotation(srcSpan, asgn, id, type)];
         }
         let { withouIdentifier, identifier } = consumeIdentifier(restAsgn);
         let withoutDColon = consumeDColon(withouIdentifier)
@@ -240,7 +242,11 @@ module ts {
         }
         return [asgn];
     }
-
+    
+    /**
+     * Consume an assignability token (one of "readonly", "global" , "local"). If nothing is provided
+     * assume WriteGlobal as default.
+     */
     export function consumeAssignability(srcSpan: RsSrcSpan, tokens: string[], node?: VariableDeclaration) {
         if (!tokens || tokens.length <= 0) {
             throw new Error("[refscript] extractAssignabilityAnnotation called with empty token list");
@@ -267,7 +273,7 @@ module ts {
             default:
                 return {
                     restAsgn: tokens,
-                    asgn: (node && isInAmbientContext(node)) ? Assignability.Ambient : Assignability.WriteLocal
+                    asgn: (node && isInAmbientContext(node)) ? Assignability.Ambient : Assignability.WriteGlobal
                 }
         }
     }

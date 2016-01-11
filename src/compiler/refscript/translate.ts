@@ -651,10 +651,12 @@ namespace ts {
                 if (declaration.name.kind === SyntaxKind.ObjectBindingPattern || declaration.name.kind === SyntaxKind.ArrayBindingPattern) {
                     throw new Error("[refscript] Object and array binding patterns are not supported.");
                 }
-                let toName = () => getTextOfNode(<Identifier>declaration.name);
-                let toTypeStr = () => checker.typeToString(checker.getTypeAtLocation(declaration), declaration);
+                let name = getTextOfNode(<Identifier>declaration.name);
+                let typeStr = checker.typeToString(checker.getTypeAtLocation(declaration), declaration);
+                
                 let mkVarDeclAnn = (rawContent: string, srcSpan: RsSrcSpan, node: VariableDeclaration) =>
-                    makeVariableDeclarationAnnotation(rawContent, srcSpan, node, toName, toTypeStr);
+                    makeVariableDeclarationAnnotation(rawContent, srcSpan, node, name, typeStr);
+                    
                 let annotations: Annotation[] = nodeAnnotations(variableStatement, mkVarDeclAnn);
                 // No type annotation given -- Use the TypeScript one
                 if (!annotations.some(a => a instanceof VariableDeclarationAnnotation)) {
@@ -663,7 +665,7 @@ namespace ts {
                     // let inlineAssignability = nodeAnnotations(variableStatement.declarationList, makeVariableAssignability)[0];
                     let assignability = (isInAmbientContext(declaration)) ? Assignability.Ambient : Assignability.WriteLocal;                
                     annotations = concatenate(annotations,
-                        [new VariableDeclarationAnnotation(nodeToSrcSpan(declaration), assignability, toName(), toTypeStr())]
+                        [new VariableDeclarationAnnotation(nodeToSrcSpan(declaration), assignability, name, undefined)]
                     );
                 }
                 // Add the 'exported' annotation
