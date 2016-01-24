@@ -653,23 +653,29 @@ namespace ts {
                 }
                 let name = getTextOfNode(<Identifier>declaration.name);
                 let typeStr = checker.typeToString(checker.getTypeAtLocation(declaration), declaration);
-                
+
                 let mkVarDeclAnn = (rawContent: string, srcSpan: RsSrcSpan, node: VariableDeclaration) =>
                     makeVariableDeclarationAnnotation(rawContent, srcSpan, node, name, typeStr);
-                    
+
                 let annotations: Annotation[] = nodeAnnotations(variableStatement, mkVarDeclAnn);
                 // No type annotation given -- Use the TypeScript one
                 if (!annotations.some(a => a instanceof VariableDeclarationAnnotation)) {
-                    
+
                     // General local annotations -- no type annotation
                     let assignability = Assignability.WriteLocal;
                     let type = "";
-                    
+
                     // Add the type annotation for ambient declarations
-                    if (isInAmbientContext(declaration)) {                    
+                    if (isInAmbientContext(declaration)) {
                         assignability = (isInAmbientContext(declaration)) ? Assignability.Ambient : Assignability.WriteLocal;
                         type = typeStr;
-                    }                                     
+                    }
+
+                    // If there is a TS type given, propagate it too
+                    if (declaration.type) {
+                        type = typeStr;
+                    }
+
                     annotations = concatenate(annotations,
                         [new VariableDeclarationAnnotation(nodeToSrcSpan(declaration), assignability, name, type)]
                     );
