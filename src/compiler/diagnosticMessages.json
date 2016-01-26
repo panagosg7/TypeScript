@@ -2634,5 +2634,9 @@
      "[refscript] Unsupported postfix operator '{0}'.": {                        
          "category": "Unimplemented",
          "code": 10048
+     },
+     "[refscript] Unsupported for loop initialization expression '{0}'.": {                        
+         "category": "Unimplemented",
+         "code": 10049
      }
  }

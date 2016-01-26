@@ -355,6 +355,8 @@ namespace ts {
                         return whileStatementToRsStmt(state, <WhileStatement>node);
                     case SyntaxKind.EmptyStatement:
                         return emptyStatementToRsStmt(state, node);
+                    case SyntaxKind.ForStatement:
+                        return forStatementToRsStmt(state, <ForStatement>node);
                 }
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsStmt", SyntaxKind[node.kind]);
             }
@@ -664,8 +666,13 @@ namespace ts {
                     // General local annotations -- no type annotation
                     let assignability = Assignability.WriteLocal;
                     let type = "";
-
-                    // Add the type annotation for ambient declarations
+                    
+                    // Add annoation for EXPORTED variables
+                    if (variableStatement.modifiers && variableStatement.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
+                        type = typeStr;   
+                    }
+                
+                    // Add the type annotation for AMBIENT declarations
                     if (isInAmbientContext(declaration)) {
                         assignability = (isInAmbientContext(declaration)) ? Assignability.Ambient : Assignability.WriteLocal;
                         type = typeStr;
@@ -882,9 +889,34 @@ namespace ts {
                 return new RsWhileStmt(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeToRsStmt(state, node.statement));
             }
 
-            // while statement
+            // empty statement
             function emptyStatementToRsStmt(state: RsTranslationState, node: Statement): RsEmptyStmt {
                 return new RsEmptyStmt(nodeToSrcSpan(node), []);
+            }
+                       
+            // for statement
+            function forStatementToRsStmt(state: RsTranslationState, node: ForStatement): RsForStmt {
+                let init: RsForInit;                
+                if (node.initializer) {
+                    if (node.initializer.kind === SyntaxKind.VariableDeclarationList) {
+                        let vdList = <VariableDeclarationList>node.initializer;
+                        // let vdListLength = vdList.declarations.length;
+                        let vds = vdList.declarations.map(vd => 
+                            new RsVarDecl(nodeToSrcSpan(vd), [], nodeToRsId(state, vd.name),
+                                (vd.initializer) ? new RsJust(nodeToRsExp(state, vd.initializer)): new RsNothing()));
+                        init = new RsVarInit(nodeToSrcSpan(node), [], new RsList(vds));
+                    }
+                    else {
+                        throw new Error(Diagnostics.refscript_Unsupported_for_loop_initialization_expression_0.key);
+                    }                                
+                }
+                else {                        
+                    init = new RsNoInit(nodeToSrcSpan(node), []);                                         
+                } 
+                return new RsForStmt(nodeToSrcSpan(node), [], init, 
+                    (node.condition) ? new RsJust(nodeToRsExp(state, node.condition)) : new RsNothing(),
+                    (node.incrementor) ? new RsJust(nodeToRsExp(state, node.incrementor)) : new RsNothing(),
+                    nodeToRsStmt(state, node.statement));
             }
 
             // constructor declaration
