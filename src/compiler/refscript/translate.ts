@@ -357,6 +357,8 @@ namespace ts {
                         return emptyStatementToRsStmt(state, node);
                     case SyntaxKind.ForStatement:
                         return forStatementToRsStmt(state, <ForStatement>node);
+                    case SyntaxKind.ForInStatement:
+                        return forinStatementToRsStmt(state, <ForInStatement>node);
                 }
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsStmt", SyntaxKind[node.kind]);
             }
@@ -568,7 +570,7 @@ namespace ts {
             // type assertion expression
             function typeAssertionExpressionToRsExp(state: RsTranslationState, node: TypeAssertion): RsCast {
                 let type = checker.getTypeAtLocation(node.type);
-                let annotation = new CastAnnotation(nodeToSrcSpan(node.type), checker.typeToString(type, node.type));
+                let annotation = new CastAnnotation(nodeToSrcSpan(node.type), checker.typeToString(type, node.type, TypeFormatFlags.WriteArrayAsGenericType));
                 return new RsCast(nodeToSrcSpan(node), [annotation], nodeToRsExp(state, node.expression));
             }
 
@@ -654,7 +656,7 @@ namespace ts {
                     throw new Error("[refscript] Object and array binding patterns are not supported.");
                 }
                 let name = getTextOfNode(<Identifier>declaration.name);
-                let typeStr = checker.typeToString(checker.getTypeAtLocation(declaration), declaration);
+                let typeStr = checker.typeToString(checker.getTypeAtLocation(declaration), declaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType);
 
                 let mkVarDeclAnn = (rawContent: string, srcSpan: RsSrcSpan, node: VariableDeclaration) =>
                     makeVariableDeclarationAnnotation(rawContent, srcSpan, node, name, typeStr);
@@ -666,12 +668,14 @@ namespace ts {
                     // General local annotations -- no type annotation
                     let assignability = Assignability.WriteLocal;
                     let type = "";
-                    
+
                     // Add annoation for EXPORTED variables
+                    // Exported variables NEED to be WriteGlobal
                     if (variableStatement.modifiers && variableStatement.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
-                        type = typeStr;   
+                        assignability = Assignability.WriteGlobal;
+                        type = typeStr;
                     }
-                
+
                     // Add the type annotation for AMBIENT declarations
                     if (isInAmbientContext(declaration)) {
                         assignability = (isInAmbientContext(declaration)) ? Assignability.Ambient : Assignability.WriteLocal;
@@ -729,7 +733,7 @@ namespace ts {
                         let s = getTextOfNode(typeParameter.name);
                         if (typeParameter.constraint) {
                             s += " extends ";
-                            s += checker.typeToString(checker.getTypeAtLocation(typeParameter.constraint), typeParameter.constraint);
+                            s += checker.typeToString(checker.getTypeAtLocation(typeParameter.constraint), typeParameter.constraint, TypeFormatFlags.WriteArrayAsGenericType);
                         }
                         return s;
                     }).join(", "));
@@ -807,7 +811,7 @@ namespace ts {
                                 else {
                                     let propertyType = checker.getTypeAtLocation(member);
                                     let optionText = ((<PropertyDeclaration>member).questionToken) ? "?" : "";
-                                    return [getTextOfNode(member.name) + ": " + checker.typeToString(propertyType, member)];
+                                    return [getTextOfNode(member.name) + ": " + checker.typeToString(propertyType, member, TypeFormatFlags.WriteArrayAsGenericType)];
                                 }
                             case SyntaxKind.CallSignature:
                                 let callAnnotations = nodeAnnotations(<FunctionDeclaration>member, makeCallAnnotations);
@@ -839,7 +843,7 @@ namespace ts {
                         annotationText += angles(node.typeParameters.map(a => a.name.text).join(", "));
                     }
                     annotationText += " = ";
-                    annotationText += checker.typeToString(checker.getTypeAtLocation(node.type), node);
+                    annotationText += checker.typeToString(checker.getTypeAtLocation(node.type), node, TypeFormatFlags.WriteArrayAsGenericType);
                     annotations = makeTypeAliasAnnotations(annotationText, nodeToSrcSpan(node));
                 }
                 return new RsEmptyStmt(nodeToSrcSpan(node), annotations);
@@ -893,30 +897,56 @@ namespace ts {
             function emptyStatementToRsStmt(state: RsTranslationState, node: Statement): RsEmptyStmt {
                 return new RsEmptyStmt(nodeToSrcSpan(node), []);
             }
-                       
+
             // for statement
             function forStatementToRsStmt(state: RsTranslationState, node: ForStatement): RsForStmt {
-                let init: RsForInit;                
+                let init: RsForInit;
                 if (node.initializer) {
                     if (node.initializer.kind === SyntaxKind.VariableDeclarationList) {
                         let vdList = <VariableDeclarationList>node.initializer;
                         // let vdListLength = vdList.declarations.length;
-                        let vds = vdList.declarations.map(vd => 
+                        let vds = vdList.declarations.map(vd =>
                             new RsVarDecl(nodeToSrcSpan(vd), [], nodeToRsId(state, vd.name),
                                 (vd.initializer) ? new RsJust(nodeToRsExp(state, vd.initializer)): new RsNothing()));
                         init = new RsVarInit(nodeToSrcSpan(node), [], new RsList(vds));
                     }
+                    else if (node.initializer.kind === SyntaxKind.BinaryExpression) {
+                        let initializer = <BinaryExpression> node.initializer;                        
+                        init = new RsExprInit(nodeToRsExp(state, initializer));
+                    }    
                     else {
+                        
                         throw new Error(Diagnostics.refscript_Unsupported_for_loop_initialization_expression_0.key);
-                    }                                
+                    }
                 }
-                else {                        
-                    init = new RsNoInit(nodeToSrcSpan(node), []);                                         
-                } 
-                return new RsForStmt(nodeToSrcSpan(node), [], init, 
+                else {
+                    init = new RsNoInit(nodeToSrcSpan(node), []);
+                }
+                return new RsForStmt(nodeToSrcSpan(node), [], init,
                     (node.condition) ? new RsJust(nodeToRsExp(state, node.condition)) : new RsNothing(),
                     (node.incrementor) ? new RsJust(nodeToRsExp(state, node.incrementor)) : new RsNothing(),
                     nodeToRsStmt(state, node.statement));
+            }
+
+            // forin statement
+            function forinStatementToRsStmt(state: RsTranslationState, node: ForInStatement): RsForInStmt {
+
+                function getForinVar() {
+                    if (node.initializer.kind === SyntaxKind.VariableDeclarationList) {
+                        let vds = (<VariableDeclarationList>node.initializer).declarations;
+                        if (vds.length === 1) {
+                            let declaration = vds[0];
+                            let id = nodeToRsId(state, declaration.name);
+                            return new RsForInVar(id);
+                        }
+                    }
+                    throw new Error(Diagnostics.refscript_Only_support_single_variable_initialization_at_ForIn_statement.key);
+                }               
+
+                let init = getForinVar();
+                let exp = nodeToRsExp(state, node.expression);                
+                let body = nodeToRsStmt(state, node.statement);
+                return new RsForInStmt(nodeToSrcSpan(node), [], init, exp, body);
             }
 
             // constructor declaration
@@ -961,13 +991,16 @@ namespace ts {
                     let sourceSpan = nodeToSrcSpan(signatureDeclaration);
                     // these are binder annotations
                     let binderAnnotations = nodeAnnotations(signatureDeclaration, makeConstructorAnnotations);
+                    
+                    // console.log(checker.methodToRscString(signature, signatureDeclaration));
+                    
                     return (binderAnnotations.length === 0) ?
                         [new ConstructorDeclarationAnnotation(sourceSpan, "new " + checker.methodToRscString(signature, signatureDeclaration))] :
                         binderAnnotations;
                 }));
 
                 return [new RsConstructor(nodeToSrcSpan(node), constructorDeclarationAnnotations, nodeArrayToRsAST(state, node.parameters, nodeToRsId),
-                    nodeArrayToRsAST(state, <NodeArray<Statement>>[] /*node.body.statements */, nodeToRsStmt))];
+                    nodeArrayToRsAST(state, node.body.statements, nodeToRsStmt))];
             }
 
 
@@ -1009,7 +1042,7 @@ namespace ts {
                 let annotations = nodeAnnotations(node, makePropertyAnnotations);
                 if (annotations.length === 0) {
                     let type = checker.getTypeAtLocation(node);
-                    annotations = concatenate(annotations, [new PropertyAnnotation(nodeToSrcSpan(node), nameText + ": " + checker.typeToString(type, node))]);
+                    annotations = concatenate(annotations, [new PropertyAnnotation(nodeToSrcSpan(node), nameText + ": " + checker.typeToString(type, node, TypeFormatFlags.WriteArrayAsGenericType))]);
                 }
                 let static = !!(node.flags & NodeFlags.Static);
                 return [new RsMemberVarDecl(nodeToSrcSpan(node), annotations, static, new RsId(nodeToSrcSpan(node.name), [], nameText),

@@ -661,5 +661,6 @@ namespace ts {
         refscript_Only_supports_block_scoped_variables_let_or_const: { code: 10047, category: DiagnosticCategory.Unimplemented, key: "[refscript] Only supports block-scoped variables (let or const)." },
         refscript_Unsupported_postfix_operator_0: { code: 10048, category: DiagnosticCategory.Unimplemented, key: "[refscript] Unsupported postfix operator '{0}'." },
         refscript_Unsupported_for_loop_initialization_expression_0: { code: 10049, category: DiagnosticCategory.Unimplemented, key: "[refscript] Unsupported for loop initialization expression '{0}'." },
+        refscript_Only_support_single_variable_initialization_at_ForIn_statement: { code: 10050, category: DiagnosticCategory.Unimplemented, key: "[refscript] Only support single variable initialization at ForIn statement." },
     };
 }

@@ -2638,5 +2638,10 @@
      "[refscript] Unsupported for loop initialization expression '{0}'.": {                        
          "category": "Unimplemented",
          "code": 10049
+     },
+     "[refscript] Only support single variable initialization at ForIn statement.": {
+         "category": "Unimplemented",
+         "code": 10050
      }
+     
  }

@@ -1689,12 +1689,13 @@ namespace ts {
 
                 function writeTypeReference(type: TypeReference, flags: TypeFormatFlags) {
                     let typeArguments = type.typeArguments;
-                    if (type.target === globalArrayType && !(flags & TypeFormatFlags.WriteArrayAsGenericType)) {
+                    if (type.target === globalArrayType && !(flags & TypeFormatFlags.WriteArrayAsGenericType) && !refscript) {      // RSC
                         writeType(typeArguments[0], TypeFormatFlags.InElementType);
                         writePunctuation(writer, SyntaxKind.OpenBracketToken);
                         writePunctuation(writer, SyntaxKind.CloseBracketToken);
                     }
                     else {
+                        
                         // Write the type reference in the format f<A>.g<B>.C<X, Y> where A and B are type arguments
                         // for outer type parameters, and f and g are the respective declaring containers of those
                         // type parameters.
@@ -2015,6 +2016,10 @@ namespace ts {
             }
 
             function buildSignatureDisplay(signature: Signature, writer: SymbolWriter, enclosingDeclaration?: Node, flags?: TypeFormatFlags, symbolStack?: Symbol[]) {
+                // if (refscript) {
+                //    flags = TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType | TypeFormatFlags.UseFullyQualifiedType;
+                // }
+                               
                 if (signature.target && (flags & TypeFormatFlags.WriteTypeArgumentsOfSignature)) {
                     // Instantiated signature, write type arguments instead
                     // This is achieved by passing in the mapper separately
