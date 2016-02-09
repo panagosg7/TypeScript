@@ -398,7 +398,7 @@ namespace ts {
                     dumpRefScriptDiagnostics(rscOutput.diagnostics, rscOutput.jsonFiles);
                     return ExitStatus.Success;
                 } catch (e) {
-                    dumpRefScriptUnknownError(e.stack);
+                    dumpRefScriptCrash(e.stack);
                     throw e;
                 }
 
@@ -441,9 +441,9 @@ namespace ts {
             }
         }
 
-        function dumpRefScriptUnknownError(msg: string) {
-            var unknownError = new FRUnknownError(msg);
-            sys.write(PrettyJSON.stringify(unknownError.serialize(), { maxLength: Number.POSITIVE_INFINITY, indent: 2 }));
+        function dumpRefScriptCrash(msg: string) {
+            var crash = new FRCrash([], msg);
+            sys.write(PrettyJSON.stringify(crash.serialize(), { maxLength: Number.POSITIVE_INFINITY, indent: 2 }));
             sys.write("\n");
         }
         // RSC - end

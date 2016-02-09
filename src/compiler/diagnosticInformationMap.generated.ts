@@ -662,5 +662,6 @@ namespace ts {
         refscript_Unsupported_postfix_operator_0: { code: 10048, category: DiagnosticCategory.Unimplemented, key: "[refscript] Unsupported postfix operator '{0}'." },
         refscript_Unsupported_for_loop_initialization_expression_0: { code: 10049, category: DiagnosticCategory.Unimplemented, key: "[refscript] Unsupported for loop initialization expression '{0}'." },
         refscript_Only_support_single_variable_initialization_at_ForIn_statement: { code: 10050, category: DiagnosticCategory.Unimplemented, key: "[refscript] Only support single variable initialization at ForIn statement." },
+        refscript_New_expressions_need_to_have_arguments: { code: 10051, category: DiagnosticCategory.Error, key: "[refscript] 'New' expressions need to have arguments." },
     };
 }

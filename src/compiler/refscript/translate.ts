@@ -97,16 +97,6 @@ namespace ts {
         }
     }
 
-    export class FRUnknownError extends FixResult {
-        constructor(private msg: string) {
-            super();
-        }
-
-        public serialize() {
-            return aesonEncode("UnknownError", this.msg);
-        }
-    }
-
     /**
      * Get the refscript source span of a node.
      * @param  Node         node    an AST node
@@ -507,6 +497,10 @@ namespace ts {
 
             // New expression
             function newExpressionToRsExp(state: RsTranslationState, node: NewExpression): RsNewExpr {
+                if (!node.arguments) {
+                    state.error(node, Diagnostics.refscript_New_expressions_need_to_have_arguments);                    
+                    return new RsNewExpr(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), new RsList([]));
+                }
                 return new RsNewExpr(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeArrayToRsAST(state, node.arguments, nodeToRsExp));
             }
 
@@ -616,6 +610,7 @@ namespace ts {
                     case SyntaxKind.PlusToken:
                     case SyntaxKind.MinusToken:
                     case SyntaxKind.EqualsEqualsEqualsToken:
+                    case SyntaxKind.ExclamationEqualsEqualsToken:        
                     case SyntaxKind.AmpersandAmpersandToken:
                     case SyntaxKind.BarBarToken:
                     case SyntaxKind.AsteriskToken:

@@ -2642,6 +2642,10 @@
      "[refscript] Only support single variable initialization at ForIn statement.": {
          "category": "Unimplemented",
          "code": 10050
+     },
+     "[refscript] 'New' expressions need to have arguments.": {
+         "category": "Error",
+         "code": 10051
      }
      
  }
