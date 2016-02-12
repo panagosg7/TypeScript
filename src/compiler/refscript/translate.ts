@@ -601,6 +601,7 @@ namespace ts {
 
             // BinaryExpression
             function binaryExpressionToRsExp(state: RsTranslationState, node: BinaryExpression): RsExpression {
+                
                 switch (node.operatorToken.kind) {
                     case SyntaxKind.PlusToken:
                     case SyntaxKind.GreaterThanToken:
@@ -619,6 +620,8 @@ namespace ts {
                             nodeToRsExp(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.EqualsToken:
                         return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp(getTextOfNode(node.operatorToken)), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));
+                    case SyntaxKind.PlusEqualsToken:
+                        return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp("+="), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));
                     default:
                         state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsExp", SyntaxKind[node.kind]);
 
