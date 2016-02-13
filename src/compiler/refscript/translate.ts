@@ -616,12 +616,13 @@ namespace ts {
                     case SyntaxKind.BarBarToken:
                     case SyntaxKind.AsteriskToken:
                     case SyntaxKind.InstanceOfKeyword:
+                    case SyntaxKind.InKeyword:
                         return new RsInfixExpr(nodeToSrcSpan(node), [], new RsInfixOp(getTextOfNode(node.operatorToken)),
                             nodeToRsExp(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.EqualsToken:
                         return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp(getTextOfNode(node.operatorToken)), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.PlusEqualsToken:
-                        return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp("+="), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));
+                        return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp("+="), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));                    
                     default:
                         state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsExp", SyntaxKind[node.kind]);
 
@@ -882,8 +883,8 @@ namespace ts {
                     return new RsModuleStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
                         new RsList((<ModuleBlock>node.body).statements.map(n => nodeToRsStmt(state, n))));
                 }
-
-                throw new Error(Diagnostics.refscript_Only_support_ModuleBlocks_inside_a_Module_s_body.key);
+                
+                state.error(node, Diagnostics.refscript_Qualfied_module_name_0_is_not_supported, node.name.text);
             }
 
             // while statement

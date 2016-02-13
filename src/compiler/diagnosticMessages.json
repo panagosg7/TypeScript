@@ -2603,7 +2603,7 @@
          "category": "Error",
          "code": 10040
      },
-     "[refscript] Only support ModuleBlocks inside a Module's body.": {                        
+     "[refscript] Qualfied module name '{0}' is not supported.": {                        
          "category": "Unimplemented",
          "code": 10041
      },

@@ -13289,10 +13289,10 @@ namespace ts {
                     }
                 }
             }
-            
+                        
             // RSC
             if (node.body.kind !== SyntaxKind.ModuleBlock) {
-                error(node.body, Diagnostics.refscript_Only_support_ModuleBlocks_inside_a_Module_s_body);
+                error(node.body, Diagnostics.refscript_Qualfied_module_name_0_is_not_supported, node.name.text);
             }
 
             checkSourceElement(node.body);
