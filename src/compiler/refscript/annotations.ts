@@ -393,13 +393,15 @@ module ts {
                     return [new GlobalAnnotation(srcSpan, AnnotationKind.InvariantRawSpec, content)];
                 case "option":
                     return [new GlobalAnnotation(srcSpan, AnnotationKind.OptionRawSpec, content)];
+                case "type":
+                    return makeTypeAliasAnnotations(s, srcSpan);
             }
         }
         return [];
     }
 
     function isReservedAnnotationPrefix(s: string) {
-        return (indexOfEq(["measure", "qualif", "interface", "alias", "class", "predicate", "invariant", "cast", "<anonymous>", "option"], s) !== -1);
+        return (indexOfEq(["measure", "qualif", "interface", "type", "class", "predicate", "invariant", "cast", "<anonymous>", "option"], s) !== -1);
     }
 
     /**
