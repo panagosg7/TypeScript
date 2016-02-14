@@ -104,3 +104,9 @@ To regenerate diagnostics: `jake generate-diagnostics`
 
 Initialize const `preludePath` in `src/compiler/program.ts` necessarily. (TODO: move prelude.d.ts over to this project)
 
+### Atom (editor) support
+
+Use with `atom-typescript` plugin version 7.1.5:
+
+    apm install atom-typescript@7.1.5
+
