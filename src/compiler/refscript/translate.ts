@@ -621,6 +621,7 @@ namespace ts {
                     case SyntaxKind.InstanceOfKeyword:
                     case SyntaxKind.InKeyword:
                     case SyntaxKind.BarToken:
+                    case SyntaxKind.SlashToken:
                         return new RsInfixExpr(nodeToSrcSpan(node), [], new RsInfixOp(getTextOfNode(node.operatorToken)),
                             nodeToRsExp(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.EqualsToken:
@@ -660,7 +661,7 @@ namespace ts {
                 }
                 let name = getTextOfNode(<Identifier>declaration.name);
                 let typeStr = checker.typeToString(checker.getTypeAtLocation(declaration), declaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType);
-
+                
                 let mkVarDeclAnn = (rawContent: string, srcSpan: RsSrcSpan, node: VariableDeclaration) =>
                     makeVariableDeclarationAnnotation(rawContent, srcSpan, node, name, typeStr);
 
