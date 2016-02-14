@@ -361,8 +361,11 @@ namespace ts {
                         return methodDeclarationToRsClassElts(state, <MethodDeclaration>node);
                     case SyntaxKind.PropertyDeclaration:
                         return propertyDeclarationToRsClassElts(state, <PropertyDeclaration>node);
+                    case SyntaxKind.SemicolonClassElement:
+                        return [];                        
                 }
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsClassElts", SyntaxKind[node.kind]);
+                return [];
             }
 
             /**
@@ -617,6 +620,7 @@ namespace ts {
                     case SyntaxKind.AsteriskToken:
                     case SyntaxKind.InstanceOfKeyword:
                     case SyntaxKind.InKeyword:
+                    case SyntaxKind.BarToken:
                         return new RsInfixExpr(nodeToSrcSpan(node), [], new RsInfixOp(getTextOfNode(node.operatorToken)),
                             nodeToRsExp(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.EqualsToken:
@@ -867,8 +871,12 @@ namespace ts {
                 if (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
                     annotations = concatenate(annotations, [new ExportedAnnotation(nodeToSrcSpan(node))]);
                 }
-                return new RsClassStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
-                    new RsList(concat(node.members.map(n => nodeToRsClassElts(state, n)))));
+                
+                let celts = concat(node.members.map(n => nodeToRsClassElts(state, n)));
+                    
+                
+                return new RsClassStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),                
+                    new RsList(celts));
             }
 
             // module declaration
