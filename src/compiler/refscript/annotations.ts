@@ -33,6 +33,7 @@ module ts {
         InterfaceRawSpec,              // Data type definition
         ModuleRawSpec,                 // Module specification
         ClassRawSpec,                  // Class specification
+        ClassInvRawSpec,               // Class invariant specification        
         FieldRawSpec,                  // Field specification
         MethodRawSpec,                 // Method specification
         ConstructorRawSpec,            // Constructor specification
@@ -136,6 +137,13 @@ module ts {
             super(sourceSpan, AnnotationKind.ClassRawSpec, content);
         }
     }
+
+    export class ClassInvAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.ClassInvRawSpec, content);
+        }
+    }
+
 
     export class CallAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
@@ -364,6 +372,9 @@ module ts {
         if (tokens && tokens.length > 0 && tokens[0] === "class") {
             return [new ClassAnnotation(srcSpan, s)];
         }
+        if (tokens && tokens.length > 0 && tokens[0] === "inv") {
+            return [new ClassInvAnnotation(srcSpan, tokens.slice(1).join(' '))];
+        }    
         return [];
     }
 

@@ -349,6 +349,8 @@ namespace ts {
                         return forStatementToRsStmt(state, <ForStatement>node);
                     case SyntaxKind.ForInStatement:
                         return forinStatementToRsStmt(state, <ForInStatement>node);
+                    case SyntaxKind.EnumDeclaration:
+                        return enumDeclarationToRsStmt(state, <EnumDeclaration> node);
                 }
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsStmt", SyntaxKind[node.kind]);
             }
@@ -362,7 +364,7 @@ namespace ts {
                     case SyntaxKind.PropertyDeclaration:
                         return propertyDeclarationToRsClassElts(state, <PropertyDeclaration>node);
                     case SyntaxKind.SemicolonClassElement:
-                        return [];                        
+                        return [];
                 }
                 state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsClassElts", SyntaxKind[node.kind]);
                 return [];
@@ -501,7 +503,7 @@ namespace ts {
             // New expression
             function newExpressionToRsExp(state: RsTranslationState, node: NewExpression): RsNewExpr {
                 if (!node.arguments) {
-                    state.error(node, Diagnostics.refscript_New_expressions_need_to_have_arguments);                    
+                    state.error(node, Diagnostics.refscript_New_expressions_need_to_have_arguments);
                     return new RsNewExpr(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), new RsList([]));
                 }
                 return new RsNewExpr(nodeToSrcSpan(node), [], nodeToRsExp(state, node.expression), nodeArrayToRsAST(state, node.arguments, nodeToRsExp));
@@ -604,7 +606,7 @@ namespace ts {
 
             // BinaryExpression
             function binaryExpressionToRsExp(state: RsTranslationState, node: BinaryExpression): RsExpression {
-                
+
                 switch (node.operatorToken.kind) {
                     case SyntaxKind.PlusToken:
                     case SyntaxKind.GreaterThanToken:
@@ -614,7 +616,7 @@ namespace ts {
                     case SyntaxKind.PlusToken:
                     case SyntaxKind.MinusToken:
                     case SyntaxKind.EqualsEqualsEqualsToken:
-                    case SyntaxKind.ExclamationEqualsEqualsToken:        
+                    case SyntaxKind.ExclamationEqualsEqualsToken:
                     case SyntaxKind.AmpersandAmpersandToken:
                     case SyntaxKind.BarBarToken:
                     case SyntaxKind.AsteriskToken:
@@ -627,7 +629,7 @@ namespace ts {
                     case SyntaxKind.EqualsToken:
                         return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp(getTextOfNode(node.operatorToken)), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.PlusEqualsToken:
-                        return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp("+="), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));                    
+                        return new RsAssignExpr(nodeToSrcSpan(node), [], new RsAssignOp("+="), nodeToRsLval(state, node.left), nodeToRsExp(state, node.right));
                     default:
                         state.error(node, Diagnostics.refscript_0_SyntaxKind_1_not_supported_yet, "nodeToRsExp", SyntaxKind[node.kind]);
 
@@ -661,7 +663,7 @@ namespace ts {
                 }
                 let name = getTextOfNode(<Identifier>declaration.name);
                 let typeStr = checker.typeToString(checker.getTypeAtLocation(declaration), declaration, TypeFormatFlags.NoTruncation | TypeFormatFlags.WriteArrayAsGenericType);
-                
+
                 let mkVarDeclAnn = (rawContent: string, srcSpan: RsSrcSpan, node: VariableDeclaration) =>
                     makeVariableDeclarationAnnotation(rawContent, srcSpan, node, name, typeStr);
 
@@ -859,7 +861,8 @@ namespace ts {
 
             // class declaration
             function classDeclarationToRsStmt(state: RsTranslationState, node: ClassDeclaration): RsClassStmt {
-                let annotations = nodeAnnotations(node, makeClassStatementAnnotations);
+                let annotations = nodeAnnotations(node, makeClassStatementAnnotations);                
+                
                 if (annotations.length < 1) {
                     let nameText = getTextOfNode(node.name);
                     let typeParametersText = typeParametersToString(node.typeParameters);
@@ -872,11 +875,11 @@ namespace ts {
                 if (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
                     annotations = concatenate(annotations, [new ExportedAnnotation(nodeToSrcSpan(node))]);
                 }
-                
+
                 let celts = concat(node.members.map(n => nodeToRsClassElts(state, n)));
-                    
-                
-                return new RsClassStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),                
+
+
+                return new RsClassStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
                     new RsList(celts));
             }
 
@@ -892,7 +895,7 @@ namespace ts {
                     return new RsModuleStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
                         new RsList((<ModuleBlock>node.body).statements.map(n => nodeToRsStmt(state, n))));
                 }
-                
+
                 state.error(node, Diagnostics.refscript_Qualfied_module_name_0_is_not_supported, node.name.text);
             }
 
@@ -919,11 +922,11 @@ namespace ts {
                         init = new RsVarInit(nodeToSrcSpan(node), [], new RsList(vds));
                     }
                     else if (node.initializer.kind === SyntaxKind.BinaryExpression) {
-                        let initializer = <BinaryExpression> node.initializer;                        
+                        let initializer = <BinaryExpression> node.initializer;
                         init = new RsExprInit(nodeToRsExp(state, initializer));
-                    }    
+                    }
                     else {
-                        
+
                         throw new Error(Diagnostics.refscript_Unsupported_for_loop_initialization_expression_0.key);
                     }
                 }
@@ -949,12 +952,41 @@ namespace ts {
                         }
                     }
                     throw new Error(Diagnostics.refscript_Only_support_single_variable_initialization_at_ForIn_statement.key);
-                }               
+                }
 
                 let init = getForinVar();
-                let exp = nodeToRsExp(state, node.expression);                
+                let exp = nodeToRsExp(state, node.expression);
                 let body = nodeToRsStmt(state, node.statement);
                 return new RsForInStmt(nodeToSrcSpan(node), [], init, exp, body);
+            }
+
+            // enum
+            function enumDeclarationToRsStmt(state: RsTranslationState, node: EnumDeclaration): RsEnumStmt {
+
+                let annotations: Annotation[] = [];
+                    
+                if (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
+                    annotations.push(new ExportedAnnotation(nodeToSrcSpan(node)));
+                }
+
+                return new RsEnumStmt(nodeToSrcSpan(node), annotations, new RsId(nodeToSrcSpan(node.name), [], getTextOfNode(node.name)),
+                    new RsList(node.members.map(e => nodeToRsEnumElt(state, e))));
+
+            }
+
+            // enum member
+            function nodeToRsEnumElt(state: RsTranslationState, node: EnumMember): RsEnumElt {
+                if (node.initializer) {
+                    // Otherwise get an expression
+                    return new RsEnumElt(nodeToSrcSpan(node), [], new RsId(nodeToSrcSpan(node.name), [], getTextOfNode(node.name)),
+                        nodeToRsExp(state, node.initializer));
+                }
+
+                let value = checker.getConstantValue(node);
+                return new RsEnumElt(nodeToSrcSpan(node), [], new RsId(nodeToSrcSpan(node.name), [], getTextOfNode(node.name)), new RsIntLit(nodeToSrcSpan(node), [], value));
+                
+                
+                state.error(node, Diagnostics.refscript_Uninitialized_enumeration_members_are_not_supported);
             }
 
             // constructor declaration
@@ -999,9 +1031,9 @@ namespace ts {
                     let sourceSpan = nodeToSrcSpan(signatureDeclaration);
                     // these are binder annotations
                     let binderAnnotations = nodeAnnotations(signatureDeclaration, makeConstructorAnnotations);
-                    
+
                     // console.log(checker.methodToRscString(signature, signatureDeclaration));
-                    
+
                     return (binderAnnotations.length === 0) ?
                         [new ConstructorDeclarationAnnotation(sourceSpan, "new " + checker.methodToRscString(signature, signatureDeclaration))] :
                         binderAnnotations;
@@ -1070,8 +1102,8 @@ namespace ts {
                 if (!node)
                     return [];
                 let currentSourceFile = getSourceFileOfNode(node);
-                let comments = emptyFromUndefined(getLeadingCommentRangesOfNode(node, currentSourceFile));
-                let match = comments.map(extractRawContent);
+                let comments = emptyFromUndefined(getLeadingCommentRangesOfNode(node, currentSourceFile));                                
+                let match = comments.map(extractRawContent);                                
                 return concat(match.filter(t => t !== null).map(t => creator(t.cstring, t.ss, node)));
 
                 function extractRawContent(commentRange: CommentRange) {

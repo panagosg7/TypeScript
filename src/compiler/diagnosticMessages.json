@@ -2646,6 +2646,13 @@
      "[refscript] 'New' expressions need to have arguments.": {
          "category": "Error",
          "code": 10051
+     },
+     "[refscript] Invalid enumeration entry for '{0}.": {
+         "category": "Error",
+         "code": 10052
+     },
+     "[refscript] Uninitialized enumeration members are not supported.": {
+         "category": "Unimplemented",
+         "code": 10053
      }
-     
  }
