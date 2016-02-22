@@ -367,7 +367,7 @@ module ts {
         return [];
     }
 
-    export function makeClassStatementAnnotations(s: string, srcSpan: RsSrcSpan): ClassAnnotation[] {
+    export function makeClassStatementAnnotations(s: string, srcSpan: RsSrcSpan): Annotation[] {
         let tokens = stringTokens(s);
         if (tokens && tokens.length > 0 && tokens[0] === "class") {
             return [new ClassAnnotation(srcSpan, s)];

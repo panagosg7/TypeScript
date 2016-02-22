@@ -861,23 +861,22 @@ namespace ts {
 
             // class declaration
             function classDeclarationToRsStmt(state: RsTranslationState, node: ClassDeclaration): RsClassStmt {
-                let annotations = nodeAnnotations(node, makeClassStatementAnnotations);                
-                
-                if (annotations.length < 1) {
+                let annotations = nodeAnnotations(node, makeClassStatementAnnotations);
+                if (annotations.every(a => !(a instanceof ClassAnnotation))) {
+                    // Create the annotation
                     let nameText = getTextOfNode(node.name);
                     let typeParametersText = typeParametersToString(node.typeParameters);
                     let heritageText = heritageClausesToString(node.heritageClauses);
                     let annotationText = ["class", nameText, typeParametersText, heritageText].join(" ");
-                    annotations = concatenate(annotations, [new ClassAnnotation(nodeToSrcSpan(node), annotationText)]);
+                    annotations.push(new ClassAnnotation(nodeToSrcSpan(node), annotationText));
                 }
 
                 // Add the 'exported' annotation
                 if (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
-                    annotations = concatenate(annotations, [new ExportedAnnotation(nodeToSrcSpan(node))]);
+                    annotations.push(new ExportedAnnotation(nodeToSrcSpan(node)));
                 }
 
                 let celts = concat(node.members.map(n => nodeToRsClassElts(state, n)));
-
 
                 return new RsClassStmt(nodeToSrcSpan(node), annotations, nodeToRsId(state, node.name),
                     new RsList(celts));
