@@ -624,6 +624,7 @@ namespace ts {
                     case SyntaxKind.InKeyword:
                     case SyntaxKind.BarToken:
                     case SyntaxKind.SlashToken:
+                    case SyntaxKind.GreaterThanGreaterThanToken:
                         return new RsInfixExpr(nodeToSrcSpan(node), [], new RsInfixOp(getTextOfNode(node.operatorToken)),
                             nodeToRsExp(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.EqualsToken:
@@ -828,6 +829,30 @@ namespace ts {
                                     let callSignature = checker.getSignatureFromDeclaration(<FunctionDeclaration>member);
                                     return [checker.methodToRscString(callSignature, member)];
                                 }
+                            case SyntaxKind.IndexSignature:
+                                let indexAnnotations = nodeAnnotations(<IndexSignatureDeclaration>member, makeIndexAnnotations);
+                                if (indexAnnotations.length === 0) {
+                                    let indexSignature = checker.getSignatureFromDeclaration(<IndexSignatureDeclaration>member);
+                                    let containerType = checker.getTypeAtLocation(node);
+                                    let strIndexType = checker.getIndexTypeOfType(containerType, IndexKind.String);
+                                    let symbol = "x"; // checker.getSymbolAtLocation(member);
+                                    // console.log("Symbol " + symbol.name);
+
+                                    if (strIndexType) {
+                                        let strIdxTy = checker.typeToString(strIndexType, member);
+                                        let content = "[" + symbol + ": string]: " + strIdxTy;
+                                        indexAnnotations.push(new IndexAnnotation(nodeToSrcSpan(member), content));
+                                    }
+
+                                    let numIndexType = checker.getIndexTypeOfType(containerType, IndexKind.Number);
+                                    if (numIndexType) {                                        
+                                        let numIdxTy = checker.typeToString(numIndexType, member);
+                                        let content = "[" + symbol + ": number]: " + numIdxTy;
+                                        indexAnnotations.push(new IndexAnnotation(nodeToSrcSpan(member), content));
+                                    }
+
+                                    return indexAnnotations.map(c => c.content);
+                                }
                             default:
                                 return [];
                         }
@@ -963,7 +988,7 @@ namespace ts {
             function enumDeclarationToRsStmt(state: RsTranslationState, node: EnumDeclaration): RsEnumStmt {
 
                 let annotations: Annotation[] = [];
-                    
+
                 if (node.modifiers && node.modifiers.some(modifier => modifier.kind === SyntaxKind.ExportKeyword)) {
                     annotations.push(new ExportedAnnotation(nodeToSrcSpan(node)));
                 }
@@ -983,8 +1008,8 @@ namespace ts {
 
                 let value = checker.getConstantValue(node);
                 return new RsEnumElt(nodeToSrcSpan(node), [], new RsId(nodeToSrcSpan(node.name), [], getTextOfNode(node.name)), new RsIntLit(nodeToSrcSpan(node), [], value));
-                
-                
+
+
                 state.error(node, Diagnostics.refscript_Uninitialized_enumeration_members_are_not_supported);
             }
 
@@ -1101,8 +1126,8 @@ namespace ts {
                 if (!node)
                     return [];
                 let currentSourceFile = getSourceFileOfNode(node);
-                let comments = emptyFromUndefined(getLeadingCommentRangesOfNode(node, currentSourceFile));                                
-                let match = comments.map(extractRawContent);                                
+                let comments = emptyFromUndefined(getLeadingCommentRangesOfNode(node, currentSourceFile));
+                let match = comments.map(extractRawContent);
                 return concat(match.filter(t => t !== null).map(t => creator(t.cstring, t.ss, node)));
 
                 function extractRawContent(commentRange: CommentRange) {

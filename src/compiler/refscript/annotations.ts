@@ -38,6 +38,7 @@ module ts {
         MethodRawSpec,                 // Method specification
         ConstructorRawSpec,            // Constructor specification
         CallRawSpec,                   // Call specification
+        IndexRawSpec,                  // Index specification
         CastRawSpec,                   // Cast
         ExportRawSpec,                 // Exported element
         AssignabilityRawSpec,          // Assignability specification
@@ -148,6 +149,12 @@ module ts {
     export class CallAnnotation extends Annotation {
         constructor(sourceSpan: RsSrcSpan, content: string) {
             super(sourceSpan, AnnotationKind.CallRawSpec, content);
+        }
+    }
+    
+    export class IndexAnnotation extends Annotation {
+        constructor(sourceSpan: RsSrcSpan, content: string) {
+            super(sourceSpan, AnnotationKind.IndexRawSpec, content);
         }
     }
 
@@ -343,6 +350,12 @@ module ts {
         if (isReservedAnnotationPrefix(tokens[0]))
             throw new Error("[refscript] Invalid call annotation: " + s);
         return [new CallAnnotation(srcSpan, s)];
+    }
+    export function makeIndexAnnotations(s: string, srcSpan: RsSrcSpan): IndexAnnotation[] {
+        let tokens = stringTokens(s);
+        if (isReservedAnnotationPrefix(tokens[0]))
+            throw new Error("[refscript] Invalid call annotation: " + s);
+        return [new IndexAnnotation(srcSpan, s)];
     }
 
     export function makeTypeSignatureAnnotation(s: string, srcSpan: RsSrcSpan): TypeSignatureAnnotation[] {
