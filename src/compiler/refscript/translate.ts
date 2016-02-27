@@ -835,9 +835,7 @@ namespace ts {
                                     let indexSignature = checker.getSignatureFromDeclaration(<IndexSignatureDeclaration>member);
                                     let containerType = checker.getTypeAtLocation(node);
                                     let strIndexType = checker.getIndexTypeOfType(containerType, IndexKind.String);
-                                    let symbol = "x"; // checker.getSymbolAtLocation(member);
-                                    // console.log("Symbol " + symbol.name);
-
+                                    let symbol = "x";   // TODO: get actual symbol
                                     if (strIndexType) {
                                         let strIdxTy = checker.typeToString(strIndexType, member);
                                         let content = "[" + symbol + ": string]: " + strIdxTy;
@@ -858,7 +856,7 @@ namespace ts {
                         }
                     })).join(";\n")
                 }
-                bodyText += " }";
+                bodyText += " }";                                
                 let interfaceAnnotations = makeInterfaceDeclarationAnnotation(typeSignatureText + bodyText, nodeToSrcSpan(node));
                 return new RsInterfaceStmt(nodeToSrcSpan(node), interfaceAnnotations, nodeToRsId(state, node.name));
             }

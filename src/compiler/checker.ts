@@ -1829,17 +1829,29 @@ namespace ts {
                             }
                             return;
                         }
-                        if (resolved.constructSignatures.length === 1 && !resolved.callSignatures.length) {
-                            if (flags & TypeFormatFlags.InElementType) {
-                                writePunctuation(writer, SyntaxKind.OpenParenToken);
+                        /* 
+                            In Rsc avoid:
+                            
+                                new () => T
+                            
+                            In favor of:
+                            
+                                { new (): T }                                    
+                        
+                        */
+                        if (!refscript) {
+                            if (resolved.constructSignatures.length === 1 && !resolved.callSignatures.length) {
+                                if (flags & TypeFormatFlags.InElementType) {
+                                    writePunctuation(writer, SyntaxKind.OpenParenToken);
+                                }
+                                writeKeyword(writer, SyntaxKind.NewKeyword);
+                                writeSpace(writer);
+                                buildSignatureDisplay(resolved.constructSignatures[0], writer, enclosingDeclaration, globalFlagsToPass | TypeFormatFlags.WriteArrowStyleSignature, symbolStack);
+                                if (flags & TypeFormatFlags.InElementType) {
+                                    writePunctuation(writer, SyntaxKind.CloseParenToken);
+                                }
+                                return;
                             }
-                            writeKeyword(writer, SyntaxKind.NewKeyword);
-                            writeSpace(writer);
-                            buildSignatureDisplay(resolved.constructSignatures[0], writer, enclosingDeclaration, globalFlagsToPass | TypeFormatFlags.WriteArrowStyleSignature, symbolStack);
-                            if (flags & TypeFormatFlags.InElementType) {
-                                writePunctuation(writer, SyntaxKind.CloseParenToken);
-                            }
-                            return;
                         }
                     }
 
