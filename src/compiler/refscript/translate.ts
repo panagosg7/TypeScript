@@ -251,10 +251,10 @@ namespace ts {
                 return annotations;
             }
 
-            function prefixGlobalAnnotations(srcSpan: RsSrcSpan, node: Node, ast: RsAST) {
-                let globalAnnotations = accumulateGlobalAnnotations(node);
-                return new RsList([new RsEmptyStmt(srcSpan, globalAnnotations), ast]);
-            }
+            // function prefixGlobalAnnotations(srcSpan: RsSrcSpan, node: Node, ast: RsAST) {
+            //     let globalAnnotations = accumulateGlobalAnnotations(node);
+            //     return new RsList([new RsEmptyStmt(srcSpan, globalAnnotations), ast]);
+            // }
 
             function nodeToRsExp(state: RsTranslationState, node: Expression): RsExpression {
                 switch (node.kind) {
@@ -625,6 +625,7 @@ namespace ts {
                     case SyntaxKind.BarToken:
                     case SyntaxKind.SlashToken:
                     case SyntaxKind.GreaterThanGreaterThanToken:
+                    case SyntaxKind.AmpersandToken:
                         return new RsInfixExpr(nodeToSrcSpan(node), [], new RsInfixOp(getTextOfNode(node.operatorToken)),
                             nodeToRsExp(state, node.left), nodeToRsExp(state, node.right));
                     case SyntaxKind.EqualsToken:
