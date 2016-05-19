@@ -549,15 +549,22 @@ namespace ts {
                 return (node.kind === SyntaxKind.TrueKeyword) ? (new RsBoolLit(nodeToSrcSpan(node), [], true)) : (new RsBoolLit(nodeToSrcSpan(node), [], false));
             }
 
-            // Boolean expression
+            // Function expression
             function functionExpressionToRsExp(state: RsTranslationState, node: FunctionExpression): RsFuncExpr {
                 if (node.name) {
                     throw new Error("[refscript] Named function expressions are not supported.");
                 }
                 let annotations = nodeAnnotations(node, makeFunctionExpressionAnnotations);
+                
                 let statements = (node.body.kind === SyntaxKind.Block) ?
                     (<Block>node.body).statements.map(statement => nodeToRsStmt(state, statement)) :                        // Actual body
                     [new RsReturnStmt(nodeToSrcSpan(node), [], new RsJust(nodeToRsExp(state, <Expression>node.body)))];     // Return expression
+                
+                if (annotations.length === 0) {
+                    let funcExprAnn = new FunctionExpressionAnnotation(nodeToSrcSpan(node), checker.typeToString(checker.getTypeAtLocation(node)));
+                    annotations.push(funcExprAnn); 
+                }                    
+                
                 return new RsFuncExpr(nodeToSrcSpan(node), annotations, new RsNothing(), nodeArrayToRsAST(state, node.parameters, nodeToRsId), new RsList(statements));
             }
 
@@ -656,6 +663,7 @@ namespace ts {
 
             // VariableStatement
             function variableStatementToRsStmt(state: RsTranslationState, variableStatement: VariableStatement): RsStatement {
+                
                 if (variableStatement.declarationList.declarations.length !== 1) {
                     throw new Error("[refscript] Currently only supporting one declaration per declaration statement");
                 }
@@ -670,6 +678,7 @@ namespace ts {
                     makeVariableDeclarationAnnotation(rawContent, srcSpan, node, name, typeStr);
 
                 let annotations: Annotation[] = nodeAnnotations(variableStatement, mkVarDeclAnn);
+                
                 // No type annotation given -- Use the TypeScript one
                 if (!annotations.some(a => a instanceof VariableDeclarationAnnotation)) {
 
@@ -819,7 +828,7 @@ namespace ts {
                                 else {
                                     let propertyType = checker.getTypeAtLocation(member);
                                     let optionText = ((<PropertyDeclaration>member).questionToken) ? "?" : "";
-                                    return [getTextOfNode(member.name) + ": " + checker.typeToString(propertyType, member, TypeFormatFlags.WriteArrayAsGenericType)];
+                                    return [getTextOfNode(member.name) + optionText + ": " + checker.typeToString(propertyType, member, TypeFormatFlags.WriteArrayAsGenericType)];
                                 }
                             case SyntaxKind.CallSignature:
                                 let callAnnotations = nodeAnnotations(<FunctionDeclaration>member, makeCallAnnotations);
@@ -1009,7 +1018,7 @@ namespace ts {
                 return new RsEnumElt(nodeToSrcSpan(node), [], new RsId(nodeToSrcSpan(node.name), [], getTextOfNode(node.name)), new RsIntLit(nodeToSrcSpan(node), [], value));
 
 
-                state.error(node, Diagnostics.refscript_Uninitialized_enumeration_members_are_not_supported);
+                // state.error(node, Diagnostics.refscript_Uninitialized_enumeration_members_are_not_supported);
             }
 
             // constructor declaration
@@ -1054,8 +1063,6 @@ namespace ts {
                     let sourceSpan = nodeToSrcSpan(signatureDeclaration);
                     // these are binder annotations
                     let binderAnnotations = nodeAnnotations(signatureDeclaration, makeConstructorAnnotations);
-
-                    // console.log(checker.methodToRscString(signature, signatureDeclaration));
 
                     return (binderAnnotations.length === 0) ?
                         [new ConstructorDeclarationAnnotation(sourceSpan, "new " + checker.methodToRscString(signature, signatureDeclaration))] :

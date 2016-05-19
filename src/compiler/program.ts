@@ -1064,16 +1064,18 @@ namespace ts {
                     diagnostics.add(createFileDiagnostic(firstNonExternalModuleSourceFile, span.start, span.length, Diagnostics.Cannot_compile_namespaces_when_the_isolatedModules_flag_is_provided));
                 }
             }
-            else if (firstExternalModuleSourceFile && languageVersion < ScriptTarget.ES6 && !options.module) {
-                // We cannot use createDiagnosticFromNode because nodes do not have parents yet
-                let span = getErrorSpanForNode(firstExternalModuleSourceFile, firstExternalModuleSourceFile.externalModuleIndicator);
-                diagnostics.add(createFileDiagnostic(firstExternalModuleSourceFile, span.start, span.length, Diagnostics.Cannot_compile_modules_unless_the_module_flag_is_provided));
-            }
+            // PV: disabling for RSC Web demo            
+            // else if (firstExternalModuleSourceFile && languageVersion < ScriptTarget.ES6 && !options.module) {
+            //     // We cannot use createDiagnosticFromNode because nodes do not have parents yet
+            //     let span = getErrorSpanForNode(firstExternalModuleSourceFile, firstExternalModuleSourceFile.externalModuleIndicator);
+            //     diagnostics.add(createFileDiagnostic(firstExternalModuleSourceFile, span.start, span.length, Diagnostics.Cannot_compile_modules_unless_the_module_flag_is_provided));
+            // }
 
-            // Cannot specify module gen target when in es6 or above
-            if (options.module && languageVersion >= ScriptTarget.ES6) {
-                diagnostics.add(createCompilerDiagnostic(Diagnostics.Cannot_compile_modules_into_commonjs_amd_system_or_umd_when_targeting_ES6_or_higher));
-            }
+            // PV: disabling for RSC Web demo
+            // // Cannot specify module gen target when in es6 or above
+            // if (options.module && languageVersion >= ScriptTarget.ES6) {
+            //     diagnostics.add(createCompilerDiagnostic(Diagnostics.Cannot_compile_modules_into_commonjs_amd_system_or_umd_when_targeting_ES6_or_higher));
+            // }
 
             // there has to be common source directory if user specified --outdir || --sourceRoot
             // if user specified --mapRoot, there needs to be common source directory if there would be multiple files being emitted
